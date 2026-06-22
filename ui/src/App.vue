@@ -39,7 +39,13 @@ import MigrationOverlay from './components/MigrationOverlay'
 
 export default {
   components: { Navbar, Socket, QuickFind, GlobalEvents, Details, EditScene, ActorDetails, EditActor, SearchStashdbScenes, SearchStashdbActors, MigrationOverlay },
+  mounted () {
+    this.applyTheme(this.theme)
+  },
   computed: {
+    theme () {
+      return this.$store.state.optionsWeb.web.theme
+    },
     showOverlay () {
       return this.$store.state.overlay.details.show
     },
@@ -58,6 +64,38 @@ export default {
     showSearchStashdbActors() {
       return this.$store.state.overlay.searchStashDbActors.show
     },
+  },
+  watch: {
+    theme (val) {
+      this.applyTheme(val)
+    }
+  },
+  methods: {
+    applyTheme (theme) {
+      const validTheme = theme === 'dark' ? 'dark' : 'light'
+      const html = document.documentElement
+      const body = document.body
+
+      html.setAttribute('data-theme', validTheme)
+      html.classList.remove('xbvr-theme-dark', 'xbvr-theme-light')
+      html.classList.add('xbvr-theme-' + validTheme)
+      if (body) {
+        body.classList.remove('xbvr-theme-dark', 'xbvr-theme-light')
+        body.classList.add('xbvr-theme-' + validTheme)
+      }
+
+      const baseUrl = (process.env.BASE_URL || '/ui/')
+      const existing = document.getElementById('xbvr-theme-css')
+      if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing)
+      }
+      const themeLink = document.createElement('link')
+      themeLink.id = 'xbvr-theme-css'
+      themeLink.rel = 'stylesheet'
+      themeLink.href = baseUrl + validTheme + '-theme.css?v=' + Date.now()
+      document.head.appendChild(themeLink)
+      localStorage.setItem('xbvr-theme', validTheme)
+    }
   }
 }
 </script>

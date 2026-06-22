@@ -3,6 +3,7 @@ import ky from 'ky'
 const state = {
   loading: false,
   web: {
+    theme: 'light',
     tagSort: 'By Tag Count',
     sceneHidden: true,
     sceneWatchlist: true,
@@ -36,6 +37,7 @@ const actions = {
     ky.get('/api/options/state')
       .json()
       .then(data => {
+        state.web.theme = data.config.web.theme || 'light'
         state.web.tagSort = data.config.web.tagSort
         state.web.sceneHidden = data.config.web.sceneHidden
         state.web.sceneWatchlist = data.config.web.sceneWatchlist
@@ -65,6 +67,7 @@ const actions = {
     ky.put('/api/options/interface/web', { json: { ...state.web } })
       .json()
       .then(data => {
+        state.web.theme = data.theme || 'light'
         state.web.tagSort = data.tagSort
         state.web.sceneHidden = data.sceneHidden
         state.web.sceneWatchlist = data.sceneWatchlist

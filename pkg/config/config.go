@@ -30,6 +30,7 @@ type ObjectConfig struct {
 		Password string `default:"" json:"password"`
 	} `json:"security"`
 	Web struct {
+		Theme                string `default:"light" json:"theme"`
 		TagSort              string `default:"by-tag-count" json:"tagSort"`
 		SceneHidden          bool   `default:"true" json:"sceneHidden"`
 		SceneWatchlist       bool   `default:"true" json:"sceneWatchlist"`
@@ -112,11 +113,11 @@ type ObjectConfig struct {
 	Library struct {
 		Preview struct {
 			Enabled       bool    `default:"true" json:"enabled"`
-			StartTime     int     `default:"10" json:"startTime"`
 			SnippetLength float64 `default:"0.4" json:"snippetLength"`
 			SnippetAmount int     `default:"20" json:"snippetAmount"`
 			Resolution    int     `default:"400" json:"resolution"`
 			ExtraSnippet  bool    `default:"false" json:"extraSnippet"`
+			UseCUDA       bool    `default:"true" json:"useCUDA"`
 		} `json:"preview"`
 	} `json:"library"`
 	Cron struct {

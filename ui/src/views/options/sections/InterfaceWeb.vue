@@ -7,6 +7,13 @@
       <div class="columns">
         <div class="column">
           <section>
+            <b-field label="Theme">
+              <b-select placeholder="Select theme" v-model="theme">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </b-select>
+            </b-field>
+
             <b-field label="Tag Sort">
               <div class="block">
                 <b-radio v-model="tagSort" name="tagSort" native-value="by-tag-count">
@@ -152,6 +159,14 @@ export default {
     }
   },
   computed: {
+    theme: {
+      get () {
+        return this.$store.state.optionsWeb.web.theme
+      },
+      set (value) {
+        this.$store.state.optionsWeb.web.theme = value
+      }
+    },
     tagSort: {
       get () {
         return this.$store.state.optionsWeb.web.tagSort

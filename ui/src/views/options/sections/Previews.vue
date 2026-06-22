@@ -7,16 +7,6 @@
       <div class="columns">
         <div class="column">
           <section>
-            <b-field label="Start time">
-              <div class="columns">
-                <div class="column is-two-thirds">
-                  <b-slider :min="5" :max="60" :step="5" :tooltip="false" v-model="startTime"></b-slider>
-                </div>
-                <div class="column">
-                  <div class="content">{{startTime}}sec</div>
-                </div>
-              </div>
-            </b-field>
             <b-field label="Snippet length">
               <div class="columns">
                 <div class="column is-two-thirds">
@@ -40,6 +30,9 @@
             <b-field>
               <b-checkbox v-model="extraSnippet">Grab extra snippet from the end of video</b-checkbox>
             </b-field>
+            <b-field>
+              <b-checkbox v-model="useCUDA">Use CUDA hardware acceleration</b-checkbox>
+            </b-field>
             <b-field label="Preview resolution">
               <div class="columns">
                 <div class="column is-two-thirds">
@@ -52,7 +45,8 @@
             </b-field>
             <b-field grouped>
               <b-button type="is-primary" @click="saveSettings" style="margin-right:1em">Save settings</b-button>
-              <b-button @click="testSettings">Test settings</b-button>
+              <b-button @click="testSettings" style="margin-right:1em">Test settings</b-button>
+              <b-button @click="clearTestPreview" v-if="isPreviewReady || previewError || previewElapsed > 0">Clear test preview</b-button>
             </b-field>
           </section>
           <hr/>
@@ -60,12 +54,9 @@
             <p>
               Once you picked preview settings, you should start generating them.
             </p>
-            <p>
-              BETA NOTE: Please note this is CPU-heavy process and once started, it could be stopped only by closing the
-              app.
-            </p>
-            <b-field>
-              <b-button type="is-primary" @click="startGenerating">Start generating previews</b-button>
+            <b-field grouped>
+              <b-button type="is-primary" @click="startGenerating" style="margin-right:1em">Start generating previews</b-button>
+              <b-button type="is-danger" @click="stopPreview" v-if="isGenerating">Stop generating</b-button>
             </b-field>
           </section>
         </div>
@@ -78,6 +69,10 @@
               </div>
             </div>
           </div>
+          <div class="timer">{{ previewTimer }}</div>
+          <b-message v-if="previewError" type="is-danger" :closable="false">
+            {{ previewError }}
+          </b-message>
         </div>
       </div>
     </div>
@@ -93,15 +88,19 @@ export default {
   data () {
     return {
       isLoading: true,
-      startTime: 5,
       snippetLength: 0.2,
       snippetAmount: 2,
       resolution: 300,
-      extraSnippet: false
+      extraSnippet: false,
+      useCUDA: true,
+      timerInterval: null
     }
   },
   async mounted () {
     await this.loadState()
+  },
+  beforeDestroy () {
+    this.stopTimer()
   },
   computed: {
     generatingPreview () {
@@ -112,6 +111,30 @@ export default {
     },
     previewFn () {
       return this.$store.state.optionsPreviews.previewFn
+    },
+    previewError () {
+      return this.$store.state.optionsPreviews.previewError
+    },
+    previewElapsed () {
+      return this.$store.state.optionsPreviews.previewElapsed
+    },
+    isGenerating () {
+      return this.generatingPreview || this.$store.state.messages.lockPreview
+    },
+    previewTimer () {
+      const total = this.previewElapsed
+      const m = Math.floor(total / 60).toString().padStart(2, '0')
+      const s = (total % 60).toString().padStart(2, '0')
+      return `${m}:${s}`
+    }
+  },
+  watch: {
+    generatingPreview (newVal, oldVal) {
+      if (newVal && !oldVal) {
+        this.startTimer()
+      } else if (!newVal && oldVal) {
+        this.stopTimer()
+      }
     }
   },
   methods: {
@@ -120,11 +143,11 @@ export default {
       await ky.get('/api/options/state')
         .json()
         .then(data => {
-          this.startTime = data.config.library.preview.startTime
           this.snippetLength = data.config.library.preview.snippetLength
           this.snippetAmount = data.config.library.preview.snippetAmount
           this.resolution = data.config.library.preview.resolution
           this.extraSnippet = data.config.library.preview.extraSnippet
+          this.useCUDA = data.config.library.preview.useCUDA !== false
           this.isLoading = false
         })
     },
@@ -132,11 +155,11 @@ export default {
       this.isLoading = true
       await ky.put('/api/options/previews', {
         json: {
-          startTime: this.startTime,
           snippetLength: this.snippetLength,
           snippetAmount: this.snippetAmount,
           resolution: this.resolution,
-          extraSnippet: this.extraSnippet
+          extraSnippet: this.extraSnippet,
+          useCUDA: this.useCUDA
         }
       })
         .json()
@@ -148,16 +171,36 @@ export default {
       this.$store.commit('optionsPreviews/hidePreview')
       await ky.post('/api/options/previews/test', {
         json: {
-          startTime: this.startTime,
           snippetLength: this.snippetLength,
           snippetAmount: this.snippetAmount,
           resolution: this.resolution,
-          extraSnippet: this.extraSnippet
+          extraSnippet: this.extraSnippet,
+          useCUDA: this.useCUDA
         }
       })
     },
     async startGenerating () {
       await ky.get('/api/task/preview/generate')
+    },
+    async stopPreview () {
+      await ky.get('/api/task/preview/stop')
+    },
+    async clearTestPreview () {
+      await ky.delete('/api/options/previews/test')
+      this.stopTimer()
+    },
+    startTimer () {
+      this.stopTimer()
+      this.$store.commit('optionsPreviews/tickPreviewTimer')
+      this.timerInterval = setInterval(() => {
+        this.$store.commit('optionsPreviews/tickPreviewTimer')
+      }, 1000)
+    },
+    stopTimer () {
+      if (this.timerInterval) {
+        clearInterval(this.timerInterval)
+        this.timerInterval = null
+      }
     },
     prettyBytes
   }
@@ -182,5 +225,13 @@ export default {
     content: '';
     display: block;
     padding-bottom: 100%;
+  }
+
+  .timer {
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-top: 0.5em;
+    font-family: monospace;
   }
 </style>

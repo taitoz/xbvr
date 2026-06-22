@@ -44,6 +44,7 @@ type VersionCheckResponse struct {
 }
 
 type RequestSaveOptionsWeb struct {
+	Theme                string `json:"theme"`
 	TagSort              string `json:"tagSort"`
 	SceneHidden          bool   `json:"sceneHidden"`
 	SceneWatchlist       bool   `json:"sceneWatchlist"`
@@ -117,11 +118,11 @@ type RequestSaveOptionsDeoVR struct {
 
 type RequestSaveOptionsPreviews struct {
 	Enabled       bool    `json:"enabled"`
-	StartTime     int     `json:"startTime"`
 	SnippetLength float64 `json:"snippetLength"`
 	SnippetAmount int     `json:"snippetAmount"`
 	Resolution    int     `json:"resolution"`
 	ExtraSnippet  bool    `json:"extraSnippet"`
+	UseCUDA       bool    `json:"useCUDA"`
 }
 
 type GetStateResponse struct {
@@ -317,6 +318,9 @@ func (i ConfigResource) WebService() *restful.WebService {
 	ws.Route(ws.POST("/previews/test").To(i.generateTestPreview).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.DELETE("/previews/test").To(i.clearTestPreview).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	// "Funscripts" section endpoints
 	ws.Route(ws.GET("/funscripts/count").To(i.getFunscriptsCount).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
@@ -507,6 +511,7 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 		return
 	}
 
+	config.Config.Web.Theme = r.Theme
 	config.Config.Web.TagSort = r.TagSort
 	config.Config.Web.SceneHidden = r.SceneHidden
 	config.Config.Web.SceneWatchlist = r.SceneWatchlist
@@ -891,9 +896,9 @@ func (i ConfigResource) saveOptionsPreviews(req *restful.Request, resp *restful.
 
 	config.Config.Library.Preview.Resolution = r.Resolution
 	config.Config.Library.Preview.SnippetAmount = r.SnippetAmount
-	config.Config.Library.Preview.StartTime = r.StartTime
 	config.Config.Library.Preview.SnippetLength = r.SnippetLength
 	config.Config.Library.Preview.ExtraSnippet = r.ExtraSnippet
+	config.Config.Library.Preview.UseCUDA = r.UseCUDA
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
@@ -919,9 +924,24 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 		return
 	}
 
+	// Pick the first existing video file (GetFiles also returns scripts etc.)
+	var videoFile *models.File
+	for idx := range files {
+		if files[idx].Type == "video" && files[idx].Exists() {
+			videoFile = &files[idx]
+			break
+		}
+	}
+	if videoFile == nil {
+		log.Errorf("test preview: no available video file for scene %v", scene.SceneID)
+		common.PublishWS("options.previews.previewError", map[string]interface{}{"message": "no available video file found"})
+		resp.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Generate hash for given parameters
 	hash := sha1.New()
-	hash.Write([]byte(fmt.Sprintf("test-%v-%v-%v-%v-%v-%v", scene.SceneID, r.StartTime, r.SnippetLength, r.SnippetAmount, r.Resolution, r.ExtraSnippet)))
+	hash.Write([]byte(fmt.Sprintf("test-%v-%v-%v-%v-%v-%v", scene.SceneID, r.SnippetLength, r.SnippetAmount, r.Resolution, r.ExtraSnippet, r.UseCUDA)))
 
 	previewFn := fmt.Sprintf("test%x", hash.Sum(nil))
 	destFile := filepath.Join(common.VideoPreviewDir, previewFn+".mp4")
@@ -929,16 +949,22 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 	if _, err := os.Stat(destFile); os.IsNotExist(err) {
 		// Preview file does not exist, generate it
 		go func() {
-			tasks.RenderPreview(
-				files[0].GetPath(),
+			defer models.ClearStopFlag("previews")
+			err := tasks.RenderPreview(
+				videoFile.GetPath(),
 				destFile,
-				files[0].VideoProjection,
-				r.StartTime,
+				videoFile.VideoProjection,
 				r.SnippetLength,
 				r.SnippetAmount,
 				r.Resolution,
 				r.ExtraSnippet,
+				r.UseCUDA,
 			)
+			if err != nil {
+				log.Errorf("error generating test preview: %v", err)
+				common.PublishWS("options.previews.previewError", map[string]interface{}{"message": err.Error()})
+				return
+			}
 
 			common.PublishWS("options.previews.previewReady", map[string]interface{}{"previewFn": previewFn})
 		}()
@@ -948,6 +974,17 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 	}
 
 	common.PublishWS("options.previews.previewReady", map[string]interface{}{"previewFn": previewFn})
+	resp.WriteHeader(http.StatusOK)
+}
+
+func (i ConfigResource) clearTestPreview(req *restful.Request, resp *restful.Response) {
+	files, _ := filepath.Glob(filepath.Join(common.VideoPreviewDir, "test*.mp4"))
+	for _, f := range files {
+		os.Remove(f)
+	}
+	os.RemoveAll(filepath.Join(common.VideoPreviewDir, "tmp"))
+
+	common.PublishWS("options.previews.previewCleared", nil)
 	resp.WriteHeader(http.StatusOK)
 }
 

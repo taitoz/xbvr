@@ -6,7 +6,7 @@
            @click="showDetails(item)"
            @mouseover="preview = true"
            @mouseleave="preview = false">
-        <video v-if="preview && item.has_preview" :src="`/api/dms/preview/${item.scene_id}`" autoplay loop></video>
+        <video v-if="preview && item.has_preview" :src="`/api/dms/preview/${item.scene_id}`" :style="{objectFit: sceneCardScale}" autoplay loop muted></video>
         <div class="overlay align-bottom-left">
           <div style="padding: 5px">
             <b-tag v-if="item.is_watched && !this.$store.state.optionsWeb.web.sceneWatched">
@@ -278,7 +278,6 @@ export default {
   }
 
   video {
-    object-fit: cover;
     position: absolute;
     width: 100%;
     height: 100%;

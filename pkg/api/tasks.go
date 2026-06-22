@@ -81,6 +81,9 @@ func (i TaskResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/preview/generate").To(i.previewGenerate).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.GET("/preview/stop").To(i.previewStop).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.GET("/funscript/export-all").To(i.exportAllFunscripts).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
@@ -203,6 +206,11 @@ func (i TaskResource) restoreBundle(req *restful.Request, resp *restful.Response
 
 func (i TaskResource) previewGenerate(req *restful.Request, resp *restful.Response) {
 	go tasks.GeneratePreviews(nil)
+}
+
+func (i TaskResource) previewStop(req *restful.Request, resp *restful.Response) {
+	tasks.StopPreviewGeneration()
+	resp.WriteHeader(http.StatusOK)
 }
 
 func (i TaskResource) scrapeJAVR(req *restful.Request, resp *restful.Response) {
