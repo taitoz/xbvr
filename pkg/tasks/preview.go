@@ -3,7 +3,6 @@ package tasks
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -190,69 +189,17 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 	}
 
 	// Helper to render a single snippet.
-	// It tries fast seek with CUDA first, then accurate seek with CPU decode,
-	// then CPU decode with libx264, and finally creates a placeholder so the
-	// concat step never fails because of a missing segment.
+	// Ищет быстрым поиском, при ошибке пробует точный поиск,
+	// затем чистый CPU, а если файл полностью разбит — создает пустую заглушку.
 	renderSnippet := func(startSeconds float64, snippetFile string) error {
-		// copyFirstExistingSnippet copies an already generated snippet from tmpPath
-		// into outFile so all segments share the same codec parameters.
-		copyFirstExistingSnippet := func(outFile string) error {
-			entries, err := os.ReadDir(tmpPath)
-			if err != nil {
-				return err
-			}
-			for _, entry := range entries {
-				if entry.IsDir() {
-					continue
-				}
-				name := entry.Name()
-				if !strings.HasSuffix(name, ".mp4") {
-					continue
-				}
-				src := filepath.Join(tmpPath, name)
-				if src == outFile {
-					continue
-				}
-				srcFile, err := os.Open(src)
-				if err != nil {
-					continue
-				}
-				dstFile, err := os.Create(outFile)
-				if err != nil {
-					srcFile.Close()
-					return err
-				}
-				_, err = io.Copy(dstFile, srcFile)
-				dstFile.Close()
-				srcFile.Close()
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-			return fmt.Errorf("no existing snippet to copy")
-		}
-
-		// generatePlaceholder creates a minimal black video segment so concat
-		// does not fail when the real snippet could not be rendered.
-		generatePlaceholder := func(outFile string) error {
-			args := []string{
-				"-y",
-				"-f", "lavfi",
-				"-i", fmt.Sprintf("color=c=black:s=%dx%d:d=%v", resolution, resolution, snippetLength),
-				"-pix_fmt", "yuv420p",
-				"-c:v", "libx264",
-				"-t", fmt.Sprintf("%v", snippetLength),
-				outFile,
-			}
-			return runFFmpeg(args)
-		}
-
-		buildArgs := func(accurateSeek, useHwaccel, useNvenc bool) []string {
+		buildArgs := func(accurateSeek bool, pureCPU bool) []string {
 			args := []string{"-y", "-threads", "4"}
-			if useHwaccel {
+
+			// Если не pureCPU режим, используем аппаратное декодирование
+			if !pureCPU {
 				args = append(args, hwaccelArgs...)
 			}
+
 			if accurateSeek {
 				args = append(args,
 					"-i", inputFile,
@@ -265,12 +212,16 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 					"-i", inputFile,
 				)
 			}
+
 			args = append(args, "-vf", vfArgs)
-			if useNvenc {
+
+			// Настройка кодера
+			if useCUDA && !pureCPU {
 				args = append(args, nvencArgs...)
 			} else {
-				args = append(args, "-c:v", "libx264", "-preset", "fast", "-crf", "28")
+				args = append(args, "-c:v", "libx264", "-preset", "ultrafast")
 			}
+
 			args = append(args,
 				"-pix_fmt", "yuv420p",
 				"-t", fmt.Sprintf("%v", snippetLength),
@@ -279,35 +230,43 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 			return args
 		}
 
-		// First attempt: fast seek + CUDA hwaccel + NVENC encoder (when CUDA is enabled).
-		if err := runFFmpeg(buildArgs(false, true, useCUDA)); err == nil {
+		// Попытка 1: Fast Seek + GPU (Самый быстрый вариант)
+		if err := runFFmpeg(buildArgs(false, false)); err == nil {
 			return nil
-		} else {
-			log.Warnf("fast seek + CUDA failed at %.3f, retrying with accurate seek + CPU decode: %v", startSeconds, err)
+		}
+		log.Warnf("[Preview] Fast seek failed at %.3f, retrying with Accurate Seek + GPU...", startSeconds)
+
+		// Попытка 2: Accurate Seek + GPU (Точный поиск, если уплыли ключевые кадры)
+		if err := runFFmpeg(buildArgs(true, false)); err == nil {
+			return nil
+		}
+		log.Warnf("[Preview] Accurate Seek + GPU failed at %.3f, retrying on pure CPU...", startSeconds)
+
+		// Попытка 3: Accurate Seek + Pure CPU (Программный декодер/энкодер более терпимы к битым NAL)
+		if err := runFFmpeg(buildArgs(true, true)); err == nil {
+			return nil
 		}
 
-		// Second attempt: accurate seek + CPU decode + NVENC encoder.
-		if err := runFFmpeg(buildArgs(true, false, true)); err == nil {
-			return nil
-		} else {
-			log.Warnf("accurate seek + CPU decode + NVENC failed at %.3f, trying libx264 encoder: %v", startSeconds, err)
+		// Попытка 4: Финальный щит. Видео-поток на этой секунде уничтожен.
+		// Генерируем черный экран заданной длины, чтобы спасти общую сборку превью.
+		log.Errorf("[Preview] Critical corruption at %.3f. Generating black frame placeholder.", startSeconds)
+
+		// В vfArgs у тебя лежит scale/v360. Для пустышки lavfi они не нужны,
+		// но нам нужен тот же размер (обычно xbvr жмет до 600 по ширине, судя по твоему логу `scale=600:-2`).
+		// Чтобы concat не ругался на разные разрешения, сделаем стандартную заглушку.
+		dummyArgs := []string{
+			"-y", "-f", "lavfi",
+			"-i", fmt.Sprintf("color=c=black:s=600x400:d=%v:r=60", snippetLength),
+			"-pix_fmt", "yuv420p",
+			snippetFile,
 		}
 
-		// Third attempt: accurate seek + CPU decode + libx264 encoder.
-		if err := runFFmpeg(buildArgs(true, false, false)); err == nil {
-			return nil
-		} else {
-			log.Errorf("all rendering attempts failed at %.3f: %v", startSeconds, err)
+		if dummyErr := runFFmpeg(dummyArgs); dummyErr != nil {
+			// Если упал даже lavfi (что-то не так с правами на запись или диском), тогда всё-таки возвращаем ошибку
+			return fmt.Errorf("failed to render snippet and failed to create fallback placeholder: %v", dummyErr)
 		}
 
-		// Isolate the error: provide a placeholder so the scene preview concat
-		// can still complete without aborting the whole process.
-		if err := copyFirstExistingSnippet(snippetFile); err != nil {
-			log.Warnf("could not copy existing snippet for %v, generating placeholder: %v", snippetFile, err)
-			if err := generatePlaceholder(snippetFile); err != nil {
-				log.Errorf("could not generate placeholder for %v: %v", snippetFile, err)
-			}
-		}
+		// Возвращаем nil. Воркер считает, что кусок готов, и общая склейка не упадет.
 		return nil
 	}
 
