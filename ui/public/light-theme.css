@@ -159,7 +159,7 @@ a:active {
 
 .button {
 	background-color: #f4f4f5;
-	border-color: #c4c4c5;
+	border-color: transparent;
 	border-width: 1px;
 	color: #000000;
 	cursor: pointer;
@@ -577,11 +577,6 @@ fieldset[disabled] .button {
 	-webkit-box-shadow: 0 0 0 .125em rgba(111, 111, 111, .25);
 	box-shadow: 0 0 0 .125em rgba(111, 111, 111, .25);
 }
-.button.is-dark {
-	background-color: #c4c4c5;
-	border-color: #c4c4c5;
-	color: #000;
-}
 .button.is-dark.is-outlined {
 	background-color: transparent;
 	border-color: #585858;
@@ -904,4 +899,31 @@ fieldset[disabled] .button.is-link {
 	width: 3em;
 	height: 3em;
 	border-width: .25em;
+}
+
+.modal-card[data-v-449617a4] {
+	width: 93%;
+}
+
+.b-tabs .tab-content {
+	padding: 0;
+}
+
+.content.is-small {
+	padding-top: 1.5em;
+}
+
+.thumbnail[data-v-449617a4] {
+	height: 170px;
+	padding-bottom: 0.2em;
+}
+
+.tooltip[data-v-449617a4] {
+	position: absolute;
+	z-index: 1;
+	top: 10px;
+	right: 9.5em;
+	width: 680px;
+	height: 410px;
+	background-color: black;
 }
