@@ -283,30 +283,46 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			if err := renderSnippet(job.startSec, job.filePath, false); err != nil {
+			var err error
+
+			// Fast seek first.
+			err = renderSnippet(job.startSec, job.filePath, false)
+			if err != nil {
+				log.Warnf("snippet %v fast seek failed, retrying with accurate seek: %v", job.index, err)
+				err = renderSnippet(job.startSec, job.filePath, true)
+			}
+
+			// If fast seek succeeded but produced an empty/small file, retry with accurate seek.
+			if err == nil {
+				snippetSize := int64(0)
+				if fi, statErr := os.Stat(job.filePath); statErr == nil {
+					snippetSize = fi.Size()
+				}
+				if snippetSize < 1000 {
+					log.Warnf("snippet %v fast seek produced small/empty file (size=%v), retrying with accurate seek", job.index, snippetSize)
+					err = renderSnippet(job.startSec, job.filePath, true)
+				}
+			}
+
+			if err != nil {
 				errMu.Lock()
 				jobErrors[job.index] = err
 				errMu.Unlock()
 				log.Errorf("snippet %v render failed: %v", job.index, err)
 				return
 			}
-			if fi, err := os.Stat(job.filePath); err != nil || fi.Size() < 1000 {
-				log.Warnf("snippet %v is too small with fast seek (size=%v), retrying with accurate seek", job.index, fi.Size())
-				if err := renderSnippet(job.startSec, job.filePath, true); err != nil {
-					errMu.Lock()
-					jobErrors[job.index] = err
-					errMu.Unlock()
-					log.Errorf("snippet %v retry failed: %v", job.index, err)
-					return
-				}
-				if fi, err := os.Stat(job.filePath); err != nil || fi.Size() < 1000 {
-					err := fmt.Errorf("snippet %v is missing or too small (path=%v, size=%v, statErr=%v)", job.index, job.filePath, fi.Size(), err)
-					errMu.Lock()
-					jobErrors[job.index] = err
-					errMu.Unlock()
-					log.Errorf("%v", err)
-					return
-				}
+
+			snippetSize := int64(0)
+			if fi, statErr := os.Stat(job.filePath); statErr == nil {
+				snippetSize = fi.Size()
+			}
+			if snippetSize < 1000 {
+				err := fmt.Errorf("snippet %v is missing or too small (path=%v, size=%v)", job.index, job.filePath, snippetSize)
+				errMu.Lock()
+				jobErrors[job.index] = err
+				errMu.Unlock()
+				log.Errorf("%v", err)
+				return
 			}
 		}(job)
 	}
