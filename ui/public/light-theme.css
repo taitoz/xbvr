@@ -901,7 +901,7 @@ fieldset[disabled] .button.is-link {
 	border-width: .25em;
 }
 
-.modal-card[data-v-449617a4] {
+.modal-card {
 	width: 93%;
 }
 
@@ -913,12 +913,12 @@ fieldset[disabled] .button.is-link {
 	padding-top: 1.5em;
 }
 
-.thumbnail[data-v-449617a4] {
+.thumbnail {
 	height: 170px;
 	padding-bottom: 0.2em;
 }
 
-.tooltip[data-v-449617a4] {
+.tooltip {
 	position: absolute;
 	z-index: 1;
 	top: 10px;
