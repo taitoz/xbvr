@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -192,10 +193,11 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 	// Ищет быстрым поиском, при ошибке пробует точный поиск,
 	// затем чистый CPU, а если файл полностью разбит — создает пустую заглушку.
 	renderSnippet := func(startSeconds float64, snippetFile string) error {
+		// Внутренний хелпер для сборки аргументов
 		buildArgs := func(accurateSeek bool, pureCPU bool) []string {
-			args := []string{"-y", "-threads", "4"}
+			// -nostdin критически важен, чтобы ffmpeg не ждал ввода в фоне
+			args := []string{"-y", "-nostdin", "-threads", "4"}
 
-			// Если не pureCPU режим, используем аппаратное декодирование
 			if !pureCPU {
 				args = append(args, hwaccelArgs...)
 			}
@@ -215,7 +217,6 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 
 			args = append(args, "-vf", vfArgs)
 
-			// Настройка кодера
 			if useCUDA && !pureCPU {
 				args = append(args, nvencArgs...)
 			} else {
@@ -230,43 +231,75 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 			return args
 		}
 
-		// Попытка 1: Fast Seek + GPU (Самый быстрый вариант)
-		if err := runFFmpeg(buildArgs(false, false)); err == nil {
+		// Хелпер для запуска ffmpeg с жестким таймаутом
+		runWithTimeout := func(args []string, timeout time.Duration) error {
+			log.Infof("ffmpeg args: %v", args)
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			// exec.CommandContext kills the process when ctx expires.
+			// Copy SysProcAttr from buildCmd to preserve CREATE_NO_WINDOW on Windows.
+			tmpl := buildCmd(GetBinPath("ffmpeg"), args...)
+			cmd := exec.CommandContext(ctx, GetBinPath("ffmpeg"), args...)
+			cmd.SysProcAttr = tmpl.SysProcAttr
+
+			previewCmdMu.Lock()
+			previewCmd = cmd
+			previewCmdMu.Unlock()
+			defer func() {
+				previewCmdMu.Lock()
+				previewCmd = nil
+				previewCmdMu.Unlock()
+			}()
+
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			err := cmd.Run()
+			if ctx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("ffmpeg hung and was killed by timeout")
+			}
+			if err != nil {
+				log.Errorf("ffmpeg error: %v", err)
+				if stderr.Len() > 0 {
+					log.Errorf("ffmpeg stderr: %s", stderr.String())
+				}
+				return fmt.Errorf("ffmpeg failed: %w (stderr: %s)", err, stderr.String())
+			}
 			return nil
 		}
-		log.Warnf("[Preview] Fast seek failed at %.3f, retrying with Accurate Seek + GPU...", startSeconds)
+
+		// Попытка 1: Fast Seek + GPU (Самый быстрый вариант)
+		if err := runWithTimeout(buildArgs(false, false), 10*time.Second); err == nil {
+			return nil
+		}
+		log.Warnf("[Preview] Fast seek failed or hung at %.3f, retrying with Accurate Seek + GPU...", startSeconds)
 
 		// Попытка 2: Accurate Seek + GPU (Точный поиск, если уплыли ключевые кадры)
-		if err := runFFmpeg(buildArgs(true, false)); err == nil {
+		if err := runWithTimeout(buildArgs(true, false), 10*time.Second); err == nil {
 			return nil
 		}
-		log.Warnf("[Preview] Accurate Seek + GPU failed at %.3f, retrying on pure CPU...", startSeconds)
+		log.Warnf("[Preview] Accurate Seek + GPU failed or hung at %.3f, retrying on pure CPU...", startSeconds)
 
-		// Попытка 3: Accurate Seek + Pure CPU (Программный декодер/энкодер более терпимы к битым NAL)
-		if err := runFFmpeg(buildArgs(true, true)); err == nil {
+		// Попытка 3: Accurate Seek + Pure CPU (обычно спасает, если завис драйвер GPU)
+		if err := runWithTimeout(buildArgs(true, true), 10*time.Second); err == nil {
 			return nil
 		}
 
-		// Попытка 4: Финальный щит. Видео-поток на этой секунде уничтожен.
-		// Генерируем черный экран заданной длины, чтобы спасти общую сборку превью.
-		log.Errorf("[Preview] Critical corruption at %.3f. Generating black frame placeholder.", startSeconds)
+		// Попытка 4: Финальный щит (генерация заглушки)
+		log.Errorf("[Preview] Critical corruption/hang at %.3f. Generating black frame placeholder.", startSeconds)
 
-		// В vfArgs у тебя лежит scale/v360. Для пустышки lavfi они не нужны,
-		// но нам нужен тот же размер (обычно xbvr жмет до 600 по ширине, судя по твоему логу `scale=600:-2`).
-		// Чтобы concat не ругался на разные разрешения, сделаем стандартную заглушку.
 		dummyArgs := []string{
-			"-y", "-f", "lavfi",
+			"-y", "-nostdin", "-f", "lavfi",
 			"-i", fmt.Sprintf("color=c=black:s=600x400:d=%v:r=60", snippetLength),
 			"-pix_fmt", "yuv420p",
 			snippetFile,
 		}
 
-		if dummyErr := runFFmpeg(dummyArgs); dummyErr != nil {
-			// Если упал даже lavfi (что-то не так с правами на запись или диском), тогда всё-таки возвращаем ошибку
+		// Для лавфи ставим короткий таймаут в 3 секунды, там зависать нечему
+		if dummyErr := runWithTimeout(dummyArgs, 3*time.Second); dummyErr != nil {
 			return fmt.Errorf("failed to render snippet and failed to create fallback placeholder: %v", dummyErr)
 		}
 
-		// Возвращаем nil. Воркер считает, что кусок готов, и общая склейка не упадет.
 		return nil
 	}
 
