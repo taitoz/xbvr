@@ -3,6 +3,7 @@ package tasks
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -189,14 +190,69 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 	}
 
 	// Helper to render a single snippet.
-	// It tries fast seek first and, if that fails, retries with accurate seek
-	// internally before returning any error to the caller.
+	// It tries fast seek with CUDA first, then accurate seek with CPU decode,
+	// then CPU decode with libx264, and finally creates a placeholder so the
+	// concat step never fails because of a missing segment.
 	renderSnippet := func(startSeconds float64, snippetFile string) error {
-		buildArgs := func(accurateSeek bool) []string {
+		// copyFirstExistingSnippet copies an already generated snippet from tmpPath
+		// into outFile so all segments share the same codec parameters.
+		copyFirstExistingSnippet := func(outFile string) error {
+			entries, err := os.ReadDir(tmpPath)
+			if err != nil {
+				return err
+			}
+			for _, entry := range entries {
+				if entry.IsDir() {
+					continue
+				}
+				name := entry.Name()
+				if !strings.HasSuffix(name, ".mp4") {
+					continue
+				}
+				src := filepath.Join(tmpPath, name)
+				if src == outFile {
+					continue
+				}
+				srcFile, err := os.Open(src)
+				if err != nil {
+					continue
+				}
+				dstFile, err := os.Create(outFile)
+				if err != nil {
+					srcFile.Close()
+					return err
+				}
+				_, err = io.Copy(dstFile, srcFile)
+				dstFile.Close()
+				srcFile.Close()
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+			return fmt.Errorf("no existing snippet to copy")
+		}
+
+		// generatePlaceholder creates a minimal black video segment so concat
+		// does not fail when the real snippet could not be rendered.
+		generatePlaceholder := func(outFile string) error {
+			args := []string{
+				"-y",
+				"-f", "lavfi",
+				"-i", fmt.Sprintf("color=c=black:s=%dx%d:d=%v", resolution, resolution, snippetLength),
+				"-pix_fmt", "yuv420p",
+				"-c:v", "libx264",
+				"-t", fmt.Sprintf("%v", snippetLength),
+				outFile,
+			}
+			return runFFmpeg(args)
+		}
+
+		buildArgs := func(accurateSeek, useHwaccel, useNvenc bool) []string {
 			args := []string{"-y", "-threads", "4"}
-			args = append(args, hwaccelArgs...)
-			// Fast seek: -ss before -i uses the container index for near-instantaneous
-			// seeking. Accurate seek fallback: -ss after -i decodes from the start.
+			if useHwaccel {
+				args = append(args, hwaccelArgs...)
+			}
 			if accurateSeek {
 				args = append(args,
 					"-i", inputFile,
@@ -209,11 +265,11 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 					"-i", inputFile,
 				)
 			}
-			args = append(args,
-				"-vf", vfArgs,
-			)
-			if useCUDA {
+			args = append(args, "-vf", vfArgs)
+			if useNvenc {
 				args = append(args, nvencArgs...)
+			} else {
+				args = append(args, "-c:v", "libx264", "-preset", "fast", "-crf", "28")
 			}
 			args = append(args,
 				"-pix_fmt", "yuv420p",
@@ -223,9 +279,34 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 			return args
 		}
 
-		if err := runFFmpeg(buildArgs(false)); err != nil {
-			log.Warnf("fast seek failed at %.3f, retrying with accurate seek: %v", startSeconds, err)
-			return runFFmpeg(buildArgs(true))
+		// First attempt: fast seek + CUDA hwaccel + NVENC encoder (when CUDA is enabled).
+		if err := runFFmpeg(buildArgs(false, true, useCUDA)); err == nil {
+			return nil
+		} else {
+			log.Warnf("fast seek + CUDA failed at %.3f, retrying with accurate seek + CPU decode: %v", startSeconds, err)
+		}
+
+		// Second attempt: accurate seek + CPU decode + NVENC encoder.
+		if err := runFFmpeg(buildArgs(true, false, true)); err == nil {
+			return nil
+		} else {
+			log.Warnf("accurate seek + CPU decode + NVENC failed at %.3f, trying libx264 encoder: %v", startSeconds, err)
+		}
+
+		// Third attempt: accurate seek + CPU decode + libx264 encoder.
+		if err := runFFmpeg(buildArgs(true, false, false)); err == nil {
+			return nil
+		} else {
+			log.Errorf("all rendering attempts failed at %.3f: %v", startSeconds, err)
+		}
+
+		// Isolate the error: provide a placeholder so the scene preview concat
+		// can still complete without aborting the whole process.
+		if err := copyFirstExistingSnippet(snippetFile); err != nil {
+			log.Warnf("could not copy existing snippet for %v, generating placeholder: %v", snippetFile, err)
+			if err := generatePlaceholder(snippetFile); err != nil {
+				log.Errorf("could not generate placeholder for %v: %v", snippetFile, err)
+			}
 		}
 		return nil
 	}
