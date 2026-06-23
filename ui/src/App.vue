@@ -72,7 +72,6 @@ export default {
   },
   methods: {
     applyTheme (theme) {
-<<<<<<< HEAD
       const validTheme = theme === 'dark' ? 'dark' : 'light'
       const html = document.documentElement
       const body = document.body
@@ -96,42 +95,6 @@ export default {
       themeLink.href = baseUrl + validTheme + '-theme.css?v=' + Date.now()
       document.head.appendChild(themeLink)
       localStorage.setItem('xbvr-theme', validTheme)
-=======
-      const body = document.body
-      const html = document.documentElement
-      let darkLink = document.getElementById('xbvr-dark-theme')
-      let lightLink = document.getElementById('xbvr-light-theme')
-      const baseUrl = (process.env.BASE_URL || '/ui/')
-      if (theme === 'dark') {
-        if (lightLink) lightLink.remove()
-        if (!darkLink) {
-          darkLink = document.createElement('link')
-          darkLink.id = 'xbvr-dark-theme'
-          darkLink.rel = 'stylesheet'
-          darkLink.href = baseUrl + 'dark-theme.css'
-          document.head.appendChild(darkLink)
-        }
-        body.classList.add('xbvr-theme-dark')
-        html.classList.add('xbvr-theme-dark')
-        body.classList.remove('xbvr-theme-light')
-        html.classList.remove('xbvr-theme-light')
-        localStorage.setItem('xbvr-theme', 'dark')
-      } else {
-        if (darkLink) darkLink.remove()
-        if (!lightLink) {
-          lightLink = document.createElement('link')
-          lightLink.id = 'xbvr-light-theme'
-          lightLink.rel = 'stylesheet'
-          lightLink.href = baseUrl + 'light-theme.css'
-          document.head.appendChild(lightLink)
-        }
-        body.classList.add('xbvr-theme-light')
-        html.classList.add('xbvr-theme-light')
-        body.classList.remove('xbvr-theme-dark')
-        html.classList.remove('xbvr-theme-dark')
-        localStorage.setItem('xbvr-theme', 'light')
-      }
->>>>>>> master
     }
   }
 }
