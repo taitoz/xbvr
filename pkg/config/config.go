@@ -46,6 +46,7 @@ type ObjectConfig struct {
 		ShowScriptHeatmap    bool   `default:"true" json:"showScriptHeatmap"`
 		ShowAllHeatmaps      bool   `default:"false" json:"showAllHeatmaps"`
 		ShowOpenInNewWindow  bool   `default:"true" json:"showOpenInNewWindow"`
+		ShowStashdbLink      bool   `default:"true" json:"showStashdbLink"`
 		UpdateCheck          bool   `default:"true" json:"updateCheck"`
 		IsAvailOpacity       int    `default:"40" json:"isAvailOpacity"`
 		SceneCardAspectRatio string `default:"1:1" json:"sceneCardAspectRatio"`

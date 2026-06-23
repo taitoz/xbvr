@@ -21,6 +21,7 @@ const state = {
     showScriptHeatmap: false,
     showAllHeatmaps: false,
     showOpenInNewWindow: true,
+    showStashdbLink: true,
     sceneCardAspectRatio: "1:1",
     sceneCardScaleToFit: true,
     actorCardAspectRatio: "1:1",
@@ -55,6 +56,7 @@ const actions = {
         state.web.updateCheck = data.config.web.updateCheck
         state.web.isAvailOpacity = data.config.web.isAvailOpacity
         state.web.showOpenInNewWindow = data.config.web.showOpenInNewWindow
+        state.web.showStashdbLink = data.config.web.showStashdbLink !== false
         state.web.sceneCardAspectRatio = data.config.web.sceneCardAspectRatio
         state.web.sceneCardScaleToFit = data.config.web.sceneCardScaleToFit
         state.web.actorCardAspectRatio = data.config.web.actorCardAspectRatio
@@ -85,6 +87,7 @@ const actions = {
         state.web.updateCheck = data.updateCheck
         state.web.isAvailOpacity = data.isAvailOpacity
         state.web.showOpenInNewWindow = data.showOpenInNewWindow
+        state.web.showStashdbLink = data.showStashdbLink
         state.web.sceneCardAspectRatio = data.sceneCardAspectRatio
         state.web.sceneCardScaleToFit = data.sceneCardScaleToFit
         state.web.actorCardAspectRatio = data.actorCardAspectRatio

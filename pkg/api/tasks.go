@@ -84,6 +84,9 @@ func (i TaskResource) WebService() *restful.WebService {
 	ws.Route(ws.GET("/preview/stop").To(i.previewStop).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
+	ws.Route(ws.GET("/preview/count").To(i.previewCount).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
 	ws.Route(ws.GET("/funscript/export-all").To(i.exportAllFunscripts).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
@@ -211,6 +214,16 @@ func (i TaskResource) previewGenerate(req *restful.Request, resp *restful.Respon
 func (i TaskResource) previewStop(req *restful.Request, resp *restful.Response) {
 	tasks.StopPreviewGeneration()
 	resp.WriteHeader(http.StatusOK)
+}
+
+func (i TaskResource) previewCount(req *restful.Request, resp *restful.Response) {
+	db, _ := models.GetDB()
+	defer db.Close()
+
+	var left int64
+	db.Model(&models.Scene{}).Where("is_available = ? AND has_video_preview = ?", true, false).Count(&left)
+
+	resp.WriteHeaderAndEntity(http.StatusOK, map[string]int64{"left": left})
 }
 
 func (i TaskResource) scrapeJAVR(req *restful.Request, resp *restful.Response) {

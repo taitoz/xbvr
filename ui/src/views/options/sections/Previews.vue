@@ -52,12 +52,16 @@
           <hr/>
           <section>
             <p>
-              Once you picked preview settings, you should start generating them.
+              Once you test preview settings, you can start generating them.<br/>
+              When hit Stop - generation process actually stops only after last file finished.
             </p>
             <b-field grouped>
-              <b-button type="is-primary" @click="startGenerating" style="margin-right:1em">Start generating previews</b-button>
-              <b-button type="is-danger" @click="stopPreview" v-if="isGenerating">Stop generating</b-button>
+              <b-button type="is-primary" @click="startGenerating" :disabled="previewLeft === 0 || isGenerating" style="margin-right:1em">Start generating previews</b-button>
+              <b-button type="is-danger" @click="stopPreview" :disabled="!isGenerating">Stop generating</b-button>
             </b-field>
+            <p v-if="previewLeft !== null" style="margin-top:0.5em">
+              <strong>Left:</strong> {{ previewLeft }}
+            </p>
           </section>
         </div>
         <div class="column">
@@ -93,14 +97,24 @@ export default {
       resolution: 300,
       extraSnippet: false,
       useCUDA: true,
-      timerInterval: null
+      timerInterval: null,
+      countInterval: null,
+      previewLeft: null
     }
   },
   async mounted () {
     await this.loadState()
+    await this.fetchPreviewCount()
+    this.countInterval = setInterval(() => {
+      this.fetchPreviewCount()
+    }, 10000)
   },
   beforeDestroy () {
     this.stopTimer()
+    if (this.countInterval) {
+      clearInterval(this.countInterval)
+      this.countInterval = null
+    }
   },
   computed: {
     generatingPreview () {
@@ -178,6 +192,14 @@ export default {
           useCUDA: this.useCUDA
         }
       })
+    },
+    async fetchPreviewCount () {
+      try {
+        const data = await ky.get('/api/task/preview/count').json()
+        this.previewLeft = data.left
+      } catch (e) {
+        // ignore
+      }
     },
     async startGenerating () {
       await ky.get('/api/task/preview/generate')

@@ -60,6 +60,7 @@ type RequestSaveOptionsWeb struct {
 	ShowScriptHeatmap    bool   `json:"showScriptHeatmap"`
 	ShowAllHeatmaps      bool   `json:"showAllHeatmaps"`
 	ShowOpenInNewWindow  bool   `json:"showOpenInNewWindow"`
+	ShowStashdbLink      bool   `json:"showStashdbLink"`
 	UpdateCheck          bool   `json:"updateCheck"`
 	IsAvailOpacity       int    `json:"isAvailOpacity"`
 	SceneCardAspectRatio string `json:"sceneCardAspectRatio"`
@@ -527,6 +528,7 @@ func (i ConfigResource) saveOptionsWeb(req *restful.Request, resp *restful.Respo
 	config.Config.Web.ShowScriptHeatmap = r.ShowScriptHeatmap
 	config.Config.Web.ShowAllHeatmaps = r.ShowAllHeatmaps
 	config.Config.Web.ShowOpenInNewWindow = r.ShowOpenInNewWindow
+	config.Config.Web.ShowStashdbLink = r.ShowStashdbLink
 	config.Config.Web.UpdateCheck = r.UpdateCheck
 	config.Config.Web.IsAvailOpacity = r.IsAvailOpacity
 	config.Config.Web.SceneCardAspectRatio = r.SceneCardAspectRatio
