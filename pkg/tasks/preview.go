@@ -189,35 +189,45 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 	}
 
 	// Helper to render a single snippet.
-	renderSnippet := func(startSeconds float64, snippetFile string, accurateSeek bool) error {
-		args := []string{"-y", "-threads", "4"}
-		args = append(args, hwaccelArgs...)
-		// Fast seek: -ss before -i uses the container index for near-instantaneous
-		// seeking. Accurate seek fallback: -ss after -i decodes from the start.
-		if accurateSeek {
+	// It tries fast seek first and, if that fails, retries with accurate seek
+	// internally before returning any error to the caller.
+	renderSnippet := func(startSeconds float64, snippetFile string) error {
+		buildArgs := func(accurateSeek bool) []string {
+			args := []string{"-y", "-threads", "4"}
+			args = append(args, hwaccelArgs...)
+			// Fast seek: -ss before -i uses the container index for near-instantaneous
+			// seeking. Accurate seek fallback: -ss after -i decodes from the start.
+			if accurateSeek {
+				args = append(args,
+					"-i", inputFile,
+					"-ss", fmt.Sprintf("%.3f", startSeconds),
+				)
+			} else {
+				args = append(args,
+					"-ss", fmt.Sprintf("%.3f", startSeconds),
+					"-noaccurate_seek",
+					"-i", inputFile,
+				)
+			}
 			args = append(args,
-				"-i", inputFile,
-				"-ss", fmt.Sprintf("%.3f", startSeconds),
+				"-vf", vfArgs,
 			)
-		} else {
+			if useCUDA {
+				args = append(args, nvencArgs...)
+			}
 			args = append(args,
-				"-ss", fmt.Sprintf("%.3f", startSeconds),
-				"-noaccurate_seek",
-				"-i", inputFile,
+				"-pix_fmt", "yuv420p",
+				"-t", fmt.Sprintf("%v", snippetLength),
+				"-an", snippetFile,
 			)
+			return args
 		}
-		args = append(args,
-			"-vf", vfArgs,
-		)
-		if useCUDA {
-			args = append(args, nvencArgs...)
+
+		if err := runFFmpeg(buildArgs(false)); err != nil {
+			log.Warnf("fast seek failed at %.3f, retrying with accurate seek: %v", startSeconds, err)
+			return runFFmpeg(buildArgs(true))
 		}
-		args = append(args,
-			"-pix_fmt", "yuv420p",
-			"-t", fmt.Sprintf("%v", snippetLength),
-			"-an", snippetFile,
-		)
-		return runFFmpeg(args)
+		return nil
 	}
 
 	// Prepare snippets in parallel with a max concurrency of 4.
@@ -283,28 +293,7 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			var err error
-
-			// Fast seek first.
-			err = renderSnippet(job.startSec, job.filePath, false)
-			if err != nil {
-				log.Warnf("snippet %v fast seek failed, retrying with accurate seek: %v", job.index, err)
-				err = renderSnippet(job.startSec, job.filePath, true)
-			}
-
-			// If fast seek succeeded but produced an empty/small file, retry with accurate seek.
-			if err == nil {
-				snippetSize := int64(0)
-				if fi, statErr := os.Stat(job.filePath); statErr == nil {
-					snippetSize = fi.Size()
-				}
-				if snippetSize < 1000 {
-					log.Warnf("snippet %v fast seek produced small/empty file (size=%v), retrying with accurate seek", job.index, snippetSize)
-					err = renderSnippet(job.startSec, job.filePath, true)
-				}
-			}
-
-			if err != nil {
+			if err := renderSnippet(job.startSec, job.filePath); err != nil {
 				errMu.Lock()
 				jobErrors[job.index] = err
 				errMu.Unlock()
