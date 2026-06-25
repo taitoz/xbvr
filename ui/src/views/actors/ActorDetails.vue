@@ -158,7 +158,7 @@
                     Scenes ({{ actor.scenes.length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: hsl(0, 0%, 100%);"></b-icon></a>
                   </template>
                   <div v-show="activeTab == 1" :class="['columns', 'is-multiline', actor.scenes.length > 6 ? 'scroll' : '']">
-                    <div :class="['column', 'is-multiline', 'is-one-third']"
+                    <div :class="['column', 'is-one-quarter']"
                       v-for="(scene, idx) in actor.scenes" :key="idx" class="image-wrapper">
                       <SceneCard :item="scene" :reRead=true />
                     </div>

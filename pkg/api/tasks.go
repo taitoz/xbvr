@@ -223,7 +223,7 @@ func (i TaskResource) previewCount(req *restful.Request, resp *restful.Response)
 	var left int64
 	db.Model(&models.Scene{}).Where("is_available = ? AND has_video_preview = ?", true, false).Count(&left)
 
-	resp.WriteHeaderAndEntity(http.StatusOK, map[string]int64{"left": left})
+	resp.WriteHeaderAndEntity(http.StatusOK, map[string]int64{"left": left, "total": left})
 }
 
 func (i TaskResource) scrapeJAVR(req *restful.Request, resp *restful.Response) {

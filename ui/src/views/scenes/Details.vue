@@ -148,15 +148,11 @@
               <div v-for="(image, idx) in castimages" :key="idx" class="image-wrapper">
                 <b-tooltip  type="is-light" :label="image.actor_label"  :delay=100>
                   <vue-load-image>
-                    <img slot="image" :src="getImageURL(image.src)" alt="Image" class="thumbnail" @mouseover="showTooltip(idx)" @mouseout="hideTooltip(idx)" @click='showActorDetail([image.actor_id])' />
+                    <img slot="image" :src="getImageURL(image.src)" alt="Image" class="thumbnail" @click='showActorDetail([image.actor_id])' />
                     <img slot="preloader" :src="getImageURL('https://i.stack.imgur.com/kOnzy.gif')" style="height: 50px;display: block;margin-left:auto;margin-right: auto;" @click='showCastScenes([image.actor_name])' />
                     <img slot="error" src="/ui/images/blank_female_profile.png" width="80" @click='showActorDetail([image.actor_id])' />
                   </vue-load-image>
                 </b-tooltip>
-
-                <div v-if="image.visible" class="tooltip">
-                  <img :src="getImageURL(image.src)" alt="Tooltip Image" />
-                </div>
               </div>
             </div>
 

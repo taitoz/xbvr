@@ -134,6 +134,11 @@ a:active {
 	z-index: 5;
 }
 
+.button.is-danger {
+	background-color: #f4f4f5;
+	border-color: transparent;
+	color: #000000;
+}
 .button.is-danger.is-outlined {
 	background-color: transparent;
 	border-color: transparent;
@@ -746,7 +751,18 @@ fieldset[disabled] .button {
 	position: absolute;
 	background-color: rgba(43, 51, 63, .6);
 	-webkit-transition: all .4s;
+	transition: all .4s;
 	opacity: 0.5;
+}
+.carousel-arrow .icon.has-icons-left {
+	left: 0.2rem;
+	height: 2em;
+	width: 2em;
+}
+.carousel-arrow .icon.has-icons-right {
+	right: 0.2rem;
+	height: 2em;
+	width: 2em;
 }
 .prev {
 	left: 0;
@@ -757,6 +773,12 @@ fieldset[disabled] .button {
 	right: 0;
 	border-radius: 3px 0 0 3px;
 	background-color: #d0d0d1;
+}
+.prev[data-v-449617a4] {
+	left: 8px;
+}
+.next[data-v-449617a4] {
+	right: 8px;
 }
 .is-large.delete,
 .is-large.modal-close {
@@ -769,7 +791,7 @@ fieldset[disabled] .button {
 }
 .modal-close {
 	position: fixed;
-	right: 20px;
+	right: 5px;
 	top: 20px;
 	background-color: #d0d0d1;
 }
@@ -901,8 +923,17 @@ fieldset[disabled] .button.is-link {
 	border-width: .25em;
 }
 
-.modal-card[data-v-449617a4] {
+.modal-card {
+	max-height: none !important;
+}
+.modal-card[data-v-449617a4],
+.modal-card[data-v-61c204b1],
+.modal-card[data-v-433aca8a] {
 	width: 93%;
+}
+.modal-card[data-v-61c204b1],
+.modal-card[data-v-433aca8a] {
+	height: 93%;
 }
 
 .b-tabs .tab-content {
@@ -916,14 +947,4 @@ fieldset[disabled] .button.is-link {
 .thumbnail[data-v-449617a4] {
 	height: 170px;
 	padding-bottom: 0.2em;
-}
-
-.tooltip[data-v-449617a4] {
-	position: absolute;
-	z-index: 1;
-	top: 10px;
-	right: 9.5em;
-	width: 680px;
-	height: 410px;
-	background-color: black;
 }

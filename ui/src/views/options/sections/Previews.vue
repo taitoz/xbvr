@@ -57,10 +57,10 @@
             </p>
             <b-field grouped>
               <b-button type="is-primary" @click="startGenerating" :disabled="previewLeft === 0 || isGenerating" style="margin-right:1em">Start generating previews</b-button>
-              <b-button type="is-danger" @click="stopPreview" :disabled="!isGenerating">Stop generating</b-button>
+              <b-button @click="stopPreview" :disabled="!isGenerating">Stop generating</b-button>
             </b-field>
-            <p v-if="previewLeft !== null" style="margin-top:0.5em">
-              <strong>Left:</strong> {{ previewLeft }}
+            <p v-if="isGenerating && previewLeft !== null" style="margin-top:0.5em">
+              <strong>Left:</strong> {{ previewLeft }} <strong>Total:</strong> {{ previewTotal }}
             </p>
           </section>
         </div>
@@ -73,7 +73,7 @@
               </div>
             </div>
           </div>
-          <div class="timer">{{ previewTimer }}</div>
+          <div class="timer" v-if="generatingPreview">Preview generation time: {{ previewTimer }}</div>
           <b-message v-if="previewError" type="is-danger" :closable="false">
             {{ previewError }}
           </b-message>
@@ -99,7 +99,8 @@ export default {
       useCUDA: true,
       timerInterval: null,
       countInterval: null,
-      previewLeft: null
+      previewLeft: null,
+      previewTotal: null
     }
   },
   async mounted () {
@@ -197,6 +198,7 @@ export default {
       try {
         const data = await ky.get('/api/task/preview/count').json()
         this.previewLeft = data.left
+        this.previewTotal = data.total
       } catch (e) {
         // ignore
       }
