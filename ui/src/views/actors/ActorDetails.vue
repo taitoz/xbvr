@@ -157,7 +157,7 @@
                   <template #header>                    
                     Scenes ({{ actor.scenes.length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: hsl(0, 0%, 100%);"></b-icon></a>
                   </template>
-                  <div v-show="activeTab == 1" :class="['columns', 'is-multiline', 'actor-scenes', actor.scenes.length > 6 ? 'scroll' : '']">
+                  <div v-show="activeTab == 1" :class="['columns', 'is-multiline', 'actor-scenes', actor.scenes.length > 6 ? 'scroll' : '']" :style="actor.scenes.length > 6 ? { height: scenesScrollHeight } : null">
                     <div :class="['column', 'is-2']"
                       v-for="(scene, idx) in actor.scenes" :key="idx" class="image-wrapper">
                       <SceneCard :item="scene" :reRead=true />
@@ -320,6 +320,10 @@ export default {
     },
     showOpenInNewWindow () {
       return this.$store.state.optionsWeb.web.showOpenInNewWindow
+    },
+    scenesScrollHeight () {
+      const rows = Math.ceil(this.actor.scenes.length / 4)
+      return `${rows * 11}em`
     },
   },
   mounted () {    
@@ -666,10 +670,6 @@ export default {
   padding-top: calc(100% - 40px - 1em) !important;
 }
 
-.modal-card {
-  width: 85%;
-}
-
 .missing {
   opacity: 0.6;
 }
@@ -802,7 +802,6 @@ span.is-active img {
   max-height: 100%;
 }
 div.scroll {
-  height: 1000px;
   overflow-x: hidden;
   overflow-y: auto;
   text-align: center;

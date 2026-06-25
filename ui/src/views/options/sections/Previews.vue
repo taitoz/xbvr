@@ -59,8 +59,11 @@
               <b-button type="is-primary" @click="startGenerating" :disabled="previewLeft === 0 || isGenerating" style="margin-right:1em">Start generating previews</b-button>
               <b-button @click="stopPreview" :disabled="!isGenerating">Stop generating</b-button>
             </b-field>
-            <p v-if="isGenerating && previewLeft !== null" style="margin-top:0.5em">
-              <strong>Left:</strong> {{ previewLeft }} <strong>Total:</strong> {{ previewTotal }}
+            <p v-if="previewStarted" style="margin-top:0.5em">
+              <span v-if="previewCalculating">Calculating...</span>
+              <span v-else-if="previewTotal !== null">
+                <strong>Total:</strong> {{ previewTotal }} <strong>Left:</strong> {{ previewLeft }}
+              </span>
             </p>
           </section>
         </div>
@@ -100,7 +103,9 @@ export default {
       timerInterval: null,
       countInterval: null,
       previewLeft: null,
-      previewTotal: null
+      previewTotal: null,
+      previewCalculating: false,
+      previewStarted: false
     }
   },
   async mounted () {
@@ -194,17 +199,25 @@ export default {
         }
       })
     },
-    async fetchPreviewCount () {
+    async fetchPreviewCount (setTotal = false) {
       try {
         const data = await ky.get('/api/task/preview/count').json()
         this.previewLeft = data.left
-        this.previewTotal = data.total
+        if (setTotal) {
+          this.previewTotal = data.total
+        }
       } catch (e) {
         // ignore
       }
     },
     async startGenerating () {
+      this.previewStarted = true
+      this.previewCalculating = true
+      this.previewLeft = null
+      this.previewTotal = null
       await ky.get('/api/task/preview/generate')
+      await this.fetchPreviewCount(true)
+      this.previewCalculating = false
     },
     async stopPreview () {
       await ky.get('/api/task/preview/stop')

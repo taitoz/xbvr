@@ -1240,10 +1240,6 @@ watch:{
   transform: translate(-50%, -50%) !important;
 }
 
-.modal-card {
-  width: 85%;
-}
-
 .missing {
   opacity: 0.6;
 }

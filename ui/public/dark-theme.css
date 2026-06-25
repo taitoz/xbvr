@@ -928,8 +928,8 @@ fieldset[disabled] .button.is-link {
 }
 
 .modal-card {
-	width: 94%;
-	height: 94%;
+	width: 94% !important;
+	height: 94% !important;
 }
 
 .columns {
