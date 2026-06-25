@@ -157,8 +157,8 @@
                   <template #header>                    
                     Scenes ({{ actor.scenes.length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: hsl(0, 0%, 100%);"></b-icon></a>
                   </template>
-                  <div v-show="activeTab == 1" :class="['columns', 'is-multiline', actor.scenes.length > 6 ? 'scroll' : '']">
-                    <div :class="['column', 'is-one-quarter']"
+                  <div v-show="activeTab == 1" :class="['columns', 'is-multiline', 'actor-scenes', actor.scenes.length > 6 ? 'scroll' : '']">
+                    <div :class="['column', 'is-2']"
                       v-for="(scene, idx) in actor.scenes" :key="idx" class="image-wrapper">
                       <SceneCard :item="scene" :reRead=true />
                     </div>
@@ -204,7 +204,7 @@
                 </b-tab-item>                
                 <b-tab-item :visible="colleagues.length != 0" :label="`Colleagues (${colleagues.length})`">
                   <div v-show="activeTab == 3" class="columns is-multiline scroll">
-                    <div :class="['column', 'is-multiline', 'is-one-third']"
+                    <div :class="['column', 'is-multiline', 'is-one-fifth']"
                       v-for="(colleague, idx) in colleagues" :key="idx" class="image-wrapper">
                       <ActorCard :actor="colleague" :colleague="actor.name" />
                     </div>

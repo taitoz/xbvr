@@ -73,7 +73,7 @@
               </div>
             </div>
           </div>
-          <div class="timer" v-if="generatingPreview">Preview generation time: {{ previewTimer }}</div>
+          <div class="timer" v-if="generatingPreview || isPreviewReady">Preview generation time: {{ previewTimer }}</div>
           <b-message v-if="previewError" type="is-danger" :closable="false">
             {{ previewError }}
           </b-message>
@@ -212,6 +212,7 @@ export default {
     async clearTestPreview () {
       await ky.delete('/api/options/previews/test')
       this.stopTimer()
+      this.$store.commit('optionsPreviews/clearPreview')
     },
     startTimer () {
       this.stopTimer()

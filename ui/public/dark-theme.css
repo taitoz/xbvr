@@ -50,6 +50,10 @@ a:active {
 	width: 360px;
 	height: 216px;
 }
+.actor-scenes .column.is-2 {
+	flex: 0 0 25%;
+	width: 25%;
+}
 
 .b-table .table-wrapper.has-mobile-cards tr:not([class*=is-]) {
 	background: transparent;
@@ -924,16 +928,12 @@ fieldset[disabled] .button.is-link {
 }
 
 .modal-card {
-	max-height: none !important;
+	width: 94%;
+	height: 94%;
 }
-.modal-card[data-v-449617a4],
-.modal-card[data-v-61c204b1],
-.modal-card[data-v-433aca8a] {
-	width: 93%;
-}
-.modal-card[data-v-61c204b1],
-.modal-card[data-v-433aca8a] {
-	height: 93%;
+
+.columns {
+	margin-top: 0 !important;
 }
 
 .b-tabs .tab-content {
