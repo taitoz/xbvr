@@ -263,6 +263,9 @@
                         <button class="button is-dark is-small is-outlined" title="Unmatch file from scene" @click='unmatchFile(f)'>
                           <b-icon pack="fas" icon="unlink" size="is-small"></b-icon>
                         </button>&nbsp;
+                        <button class="button is-warning is-small is-outlined" title="Clear preview" @click='clearPreview' v-if="idx === 0">
+                          <b-icon pack="fas" icon="eraser" size="is-small"></b-icon>
+                        </button>&nbsp;
                         <button class="button is-danger is-small is-outlined" title="Delete file from disk" @click='removeFile(f)'>
                           <b-icon pack="fas" icon="trash" size="is-small"></b-icon>
                         </button>
@@ -825,6 +828,19 @@ watch:{
         id: 'heh',
         onConfirm: () => {
           ky.post(`/api/files/unmatch`, {json:{file_id: file.id}}).json().then(data => {
+            this.$store.commit('overlay/showDetails', { scene: data })
+          })
+        }
+      })
+    },
+    clearPreview () {
+      this.$buefy.dialog.confirm({
+        title: 'Clear preview',
+        message: `You're about to clear the video preview for this scene. The preview will be regenerated the next time previews are generated.`,
+        type: 'is-warning is-wide',
+        hasIcon: true,
+        onConfirm: () => {
+          ky.post(`/api/scene/${this.item.id}/clear-preview`).json().then(data => {
             this.$store.commit('overlay/showDetails', { scene: data })
           })
         }

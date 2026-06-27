@@ -916,10 +916,14 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 		return
 	}
 
-	// Get first available scene for test preview
+	// Get an available scene without a video preview if possible,
+	// otherwise fall back to the most recently released scene.
 	var scene models.Scene
 	db, _ := models.GetDB()
-	db.Model(&models.Scene{}).Where("is_available = ?", true).Order("release_date desc").First(&scene)
+	err = db.Model(&models.Scene{}).Where("is_available = ? and has_video_preview = ?", true, false).Order("release_date desc").First(&scene).Error
+	if err != nil {
+		err = db.Model(&models.Scene{}).Where("is_available = ?", true).Order("release_date desc").First(&scene).Error
+	}
 	db.Close()
 
 	files, err := scene.GetFiles()
