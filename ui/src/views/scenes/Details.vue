@@ -840,7 +840,7 @@ watch:{
         type: 'is-warning is-wide',
         hasIcon: true,
         onConfirm: () => {
-          ky.post(`/api/scene/${this.item.scene_id}/clear-preview`).json().then(data => {
+          ky.post(`/api/scene/${this.item.scene_id}/clear-preview`, { json: {} }).json().then(data => {
             this.$store.commit('overlay/showDetails', { scene: data })
             this.$buefy.toast.open({
               message: 'Preview cleared',
