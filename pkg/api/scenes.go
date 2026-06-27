@@ -490,28 +490,45 @@ func (i SceneResource) getScene(req *restful.Request, resp *restful.Response) {
 func (i SceneResource) clearScenePreview(req *restful.Request, resp *restful.Response) {
 	var scene models.Scene
 	db, _ := models.GetDB()
+	defer db.Close()
 
-	if strings.Contains(req.PathParameter("scene-id"), "-") {
-		scene.GetIfExist(req.PathParameter("scene-id"))
-	} else {
-		id, err := strconv.Atoi(req.PathParameter("scene-id"))
+	sceneID := req.PathParameter("scene-id")
+	if strings.Contains(sceneID, "-") {
+		err := scene.GetIfExist(sceneID)
 		if err != nil {
 			log.Error(err)
-			db.Close()
+			resp.WriteHeader(http.StatusNotFound)
 			return
 		}
-		_ = scene.GetIfExistByPK(uint(id))
+	} else {
+		id, err := strconv.Atoi(sceneID)
+		if err != nil {
+			log.Error(err)
+			resp.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		err = scene.GetIfExistByPK(uint(id))
+		if err != nil {
+			log.Error(err)
+			resp.WriteHeader(http.StatusNotFound)
+			return
+		}
 	}
 
+	// Match the user's SQL: UPDATE scenes SET has_video_preview = 0 WHERE scene_id = '<scene_id>'
+	if err := db.Model(&models.Scene{}).Where("scene_id = ?", scene.SceneID).Update("has_video_preview", false).Error; err != nil {
+		log.Error(err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	scene.HasVideoPreview = false
-	scene.Save()
 
 	previewPath := filepath.Join(common.VideoPreviewDir, scene.SceneID+".mp4")
 	if _, err := os.Stat(previewPath); err == nil {
-		os.Remove(previewPath)
+		if err := os.Remove(previewPath); err != nil {
+			log.Warnf("failed to delete preview file %s: %v", previewPath, err)
+		}
 	}
-
-	db.Close()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, scene)
 }

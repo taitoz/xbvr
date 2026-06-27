@@ -840,8 +840,17 @@ watch:{
         type: 'is-warning is-wide',
         hasIcon: true,
         onConfirm: () => {
-          ky.post(`/api/scene/${this.item.id}/clear-preview`).json().then(data => {
+          ky.post(`/api/scene/${this.item.scene_id}/clear-preview`).json().then(data => {
             this.$store.commit('overlay/showDetails', { scene: data })
+            this.$buefy.toast.open({
+              message: 'Preview cleared',
+              type: 'is-success'
+            })
+          }).catch(err => {
+            this.$buefy.toast.open({
+              message: `Failed to clear preview: ${err}`,
+              type: 'is-danger'
+            })
           })
         }
       })
