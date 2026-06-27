@@ -41,7 +41,7 @@ const state = {
   isLoading: false,
   offset: 0,
   total: 0,
-  limit: 18,
+  limit: 15,
   show_actor_id: '',
   filterOpts: {
     cast: [],

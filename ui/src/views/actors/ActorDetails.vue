@@ -204,7 +204,7 @@
                 </b-tab-item>
                 <b-tab-item :visible="colleagues.length != 0" :label="`Colleagues (${colleagues.length})`">
                   <div v-show="activeTab == 3" class="columns is-multiline scroll">
-                    <div :class="['column', 'is-multiline']"
+                    <div :class="['column', 'is-multiline', 'is-2']"
                       v-for="(colleague, idx) in colleagues" :key="idx" class="image-wrapper">
                       <ActorCard :actor="colleague" :colleague="actor.name" :hideStashdb="true" />
                     </div>
@@ -805,6 +805,14 @@ div.scroll {
   overflow-x: hidden;
   overflow-y: auto;
   text-align: center;
+}
+.actor-scenes .column.is-2 .card .card-image .bbox {
+  width: 100% !important;
+  height: auto !important;
+  position: relative;
+}
+.actor-scenes .column.is-2 .card .card-image .bbox:after {
+  display: none;
 }
 .attribute-container {  
   display: flex; 

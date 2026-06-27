@@ -945,7 +945,7 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 
 	// Generate hash for given parameters
 	hash := sha1.New()
-	hash.Write([]byte(fmt.Sprintf("test-%v-%v-%v-%v-%v-%v", scene.SceneID, r.SnippetLength, r.SnippetAmount, r.Resolution, r.ExtraSnippet, r.UseCUDA)))
+	hash.Write([]byte(fmt.Sprintf("test-%v-%v-%v-%v-%v-%v-%v", scene.SceneID, r.SnippetLength, r.SnippetAmount, r.Resolution, r.ExtraSnippet, r.UseCUDA, r.Pitch)))
 
 	previewFn := fmt.Sprintf("test%x", hash.Sum(nil))
 	destFile := filepath.Join(common.VideoPreviewDir, previewFn+".mp4")
