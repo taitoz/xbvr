@@ -119,6 +119,7 @@ type ObjectConfig struct {
 			Resolution    int     `default:"400" json:"resolution"`
 			ExtraSnippet  bool    `default:"false" json:"extraSnippet"`
 			UseCUDA       bool    `default:"true" json:"useCUDA"`
+			Pitch         int     `default:"15" json:"pitch"`
 		} `json:"preview"`
 	} `json:"library"`
 	Cron struct {

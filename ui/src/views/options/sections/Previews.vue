@@ -10,7 +10,7 @@
             <b-field label="Snippet length">
               <div class="columns">
                 <div class="column is-two-thirds">
-                  <b-slider :min="0.2" :max="5" :step="0.2" :tooltip="false" v-model="snippetLength"></b-slider>
+                  <b-slider :min="0.2" :max="5" :step="0.1" :tooltip="false" v-model="snippetLength"></b-slider>
                 </div>
                 <div class="column">
                   <div class="content">{{snippetLength}}sec</div>
@@ -40,6 +40,16 @@
                 </div>
                 <div class="column">
                   <div class="content">{{resolution}}px</div>
+                </div>
+              </div>
+            </b-field>
+            <b-field label="Tilt">
+              <div class="columns">
+                <div class="column is-two-thirds">
+                  <b-slider :min="0" :max="60" :step="1" :tooltip="false" v-model="pitch"></b-slider>
+                </div>
+                <div class="column">
+                  <div class="content">{{pitch}}</div>
                 </div>
               </div>
             </b-field>
@@ -100,6 +110,7 @@ export default {
       resolution: 300,
       extraSnippet: false,
       useCUDA: true,
+      pitch: 15,
       timerInterval: null,
       countInterval: null,
       previewLeft: null,
@@ -168,6 +179,7 @@ export default {
           this.resolution = data.config.library.preview.resolution
           this.extraSnippet = data.config.library.preview.extraSnippet
           this.useCUDA = data.config.library.preview.useCUDA !== false
+          this.pitch = data.config.library.preview.pitch !== undefined ? data.config.library.preview.pitch : 15
           this.isLoading = false
         })
     },
@@ -179,7 +191,8 @@ export default {
           snippetAmount: this.snippetAmount,
           resolution: this.resolution,
           extraSnippet: this.extraSnippet,
-          useCUDA: this.useCUDA
+          useCUDA: this.useCUDA,
+          pitch: this.pitch
         }
       })
         .json()
@@ -195,7 +208,8 @@ export default {
           snippetAmount: this.snippetAmount,
           resolution: this.resolution,
           extraSnippet: this.extraSnippet,
-          useCUDA: this.useCUDA
+          useCUDA: this.useCUDA,
+          pitch: this.pitch
         }
       })
     },

@@ -83,11 +83,12 @@ export default {
 <style scoped>
   #scrollButtons {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 8px;
     position: fixed;
     bottom: 20px;
     left: 30px;
-    width: 18.5%;
+    z-index: 1000;
   }
   #toTop, #toggleInfiniteScroll {
     display: none;
@@ -96,7 +97,8 @@ export default {
     padding: 15px;
     border-radius: 10px;
     font-size: 18px;
-    margin-right: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
   }
   #toTop:hover, #toggleInfiniteScroll:hover {
     background-color: #BDBDBD;

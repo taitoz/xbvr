@@ -165,20 +165,20 @@
                   </div>
                 </b-tab-item>
                 <b-tab-item :label="$t('Akas')" :visible="akas.aka_groups != null || akas.actors != null || akas.possible_akas != null">
-                  <div v-show="activeTab == 2">
-                    <b-field :label="$t('Aka Groups')" v-if="akas.aka_groups != null &&  akas.aka_groups.length!=0">
-                      <div  class="columns is-multiline">
-                        <div :class="['column', 'is-multiline', 'is-one-third']"
+                  <div v-show="activeTab == 2" class="columns is-multiline scroll">
+                    <b-field :label="$t('Aka Groups')" v-if="akas.aka_groups != null &&  akas.aka_groups.length!=0" class="column is-full">
+                      <div class="columns is-multiline">
+                        <div :class="['column', 'is-multiline']"
                           v-for="(akaactor, idx) in akas.aka_groups" :key="idx" class="image-wrapper">
-                          <ActorCard :actor="akaactor"/>
+                          <ActorCard :actor="akaactor" :hideStashdb="true"/>
                         </div>
                       </div>
                     </b-field>
-                    <b-field :label="$t('Other Actors In Groups')" v-if="akas.actors != null &&  akas.actors.length!=0">
-                      <div  class="columns is-multiline">
-                        <div :class="['column', 'is-multiline', 'is-one-third']"
+                    <b-field :label="$t('Other Actors In Groups')" v-if="akas.actors != null &&  akas.actors.length!=0" class="column is-full">
+                      <div class="columns is-multiline">
+                        <div :class="['column', 'is-multiline']"
                           v-for="(akaactor, idx) in akas.actors" :key="idx" class="image-wrapper">
-                          <ActorCard :actor="akaactor"/>
+                          <ActorCard :actor="akaactor" :hideStashdb="true"/>
                           <b-tooltip position="is-bottom" :label="$t('Remove Cast from Aka Group. Select the Aka group and Actors to remove in the Cast Filter')" multilined :delay="200">
                             <button class="button is-small is-outlined" @click="removeFromAkaGroup(akaactor.name)" v-if="actor.name.startsWith('aka:')">
                               <b-icon pack="mdi" icon="account-minus-outline"></b-icon>
@@ -187,11 +187,11 @@
                         </div>
                       </div>
                     </b-field>
-                    <b-field :label="$t('Possible Matches')" v-if="akas.possible_akas != null &&  akas.possible_akas.length!=0">
+                    <b-field :label="$t('Possible Matches')" v-if="akas.possible_akas != null &&  akas.possible_akas.length!=0" class="column is-full">
                       <div class="columns is-multiline">
-                        <div :class="['column', 'is-multiline', 'is-one-third']"
+                        <div :class="['column', 'is-multiline']"
                           v-for="(akaactor, idx) in akas.possible_akas" :key="idx" class="image-wrapper">
-                          <ActorCard :actor="akaactor"/>
+                          <ActorCard :actor="akaactor" :hideStashdb="true"/>
                           <b-tooltip position="is-bottom" :label="$t('Add Cast to Aka Group. Select the Aka group and Actors to add in the Cast Filter')" multilined :delay="200">
                             <button class="button is-small is-outlined" @click="addToAkaGroup(akaactor.name)" v-if='actor.name.startsWith("aka:")'>
                               <b-icon pack="mdi" icon="account-plus-outline"></b-icon>
@@ -201,12 +201,12 @@
                       </div>
                     </b-field>
                   </div>
-                </b-tab-item>                
+                </b-tab-item>
                 <b-tab-item :visible="colleagues.length != 0" :label="`Colleagues (${colleagues.length})`">
                   <div v-show="activeTab == 3" class="columns is-multiline scroll">
-                    <div :class="['column', 'is-multiline', 'is-one-fifth']"
+                    <div :class="['column', 'is-multiline']"
                       v-for="(colleague, idx) in colleagues" :key="idx" class="image-wrapper">
-                      <ActorCard :actor="colleague" :colleague="actor.name" />
+                      <ActorCard :actor="colleague" :colleague="actor.name" :hideStashdb="true" />
                     </div>
                   </div>
                 </b-tab-item>
@@ -809,6 +809,7 @@ div.scroll {
 .attribute-container {  
   display: flex; 
   flex-wrap: wrap;
+  padding: 20px;
 }
 .attribute-heading {  
   width: 120px; 

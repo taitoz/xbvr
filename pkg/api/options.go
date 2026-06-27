@@ -124,6 +124,7 @@ type RequestSaveOptionsPreviews struct {
 	Resolution    int     `json:"resolution"`
 	ExtraSnippet  bool    `json:"extraSnippet"`
 	UseCUDA       bool    `json:"useCUDA"`
+	Pitch         int     `json:"pitch"`
 }
 
 type GetStateResponse struct {
@@ -901,6 +902,7 @@ func (i ConfigResource) saveOptionsPreviews(req *restful.Request, resp *restful.
 	config.Config.Library.Preview.SnippetLength = r.SnippetLength
 	config.Config.Library.Preview.ExtraSnippet = r.ExtraSnippet
 	config.Config.Library.Preview.UseCUDA = r.UseCUDA
+	config.Config.Library.Preview.Pitch = r.Pitch
 	config.SaveConfig()
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
@@ -961,6 +963,7 @@ func (i ConfigResource) generateTestPreview(req *restful.Request, resp *restful.
 				r.Resolution,
 				r.ExtraSnippet,
 				r.UseCUDA,
+				r.Pitch,
 			)
 			if err != nil {
 				log.Errorf("error generating test preview: %v", err)

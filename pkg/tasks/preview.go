@@ -76,6 +76,7 @@ func GeneratePreviews(endTime *time.Time) {
 							config.Config.Library.Preview.Resolution,
 							config.Config.Library.Preview.ExtraSnippet,
 							config.Config.Library.Preview.UseCUDA,
+							config.Config.Library.Preview.Pitch,
 						)
 						if err == nil {
 							scene.HasVideoPreview = true
@@ -93,7 +94,7 @@ func GeneratePreviews(endTime *time.Time) {
 	log.Infof("Previews generated")
 }
 
-func RenderPreview(inputFile string, destFile string, videoProjection string, snippetLength float64, snippetAmount int, resolution int, extraSnippet bool, useCUDA bool) error {
+func RenderPreview(inputFile string, destFile string, videoProjection string, snippetLength float64, snippetAmount int, resolution int, extraSnippet bool, useCUDA bool, pitch int) error {
 	tmpPath := filepath.Join(common.VideoPreviewDir, "tmp", filepath.Base(destFile)+"-"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	os.MkdirAll(tmpPath, os.ModePerm)
 	defer os.RemoveAll(tmpPath)
@@ -157,7 +158,7 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 		// whole frame is first downscaled on the GPU with scale_cuda.
 		hwaccelArgs = []string{"-hwaccel", "cuda", "-init_hw_device", "vulkan=vk:0", "-filter_hw_device", "vk", "-hwaccel_output_format", "cuda"}
 
-		vulkanFilter := "v360_vulkan=input=e:output=flat:pitch=15:ih_fov=360:iv_fov=180:h_fov=100:v_fov=50"
+		vulkanFilter := fmt.Sprintf("v360_vulkan=input=e:output=flat:pitch=%d:ih_fov=360:iv_fov=180:h_fov=100:v_fov=50", pitch)
 		vfArgs = fmt.Sprintf("scale_cuda=3840:-2,hwdownload,format=nv12,crop=iw:ih/2:0:0,format=yuv444p,hwupload,%v,scale_vulkan=%v:%v,hwdownload,format=yuv444p",
 			vulkanFilter, resolution, resolution/2)
 	} else {
@@ -172,13 +173,13 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 		var dewarpFilter string
 		switch {
 		case isTB:
-			dewarpFilter = "v360=equirect:flat:in_stereo=tb:out_stereo=2d:pitch=-15:h_fov=100:v_fov=50"
+			dewarpFilter = fmt.Sprintf("v360=equirect:flat:in_stereo=tb:out_stereo=2d:pitch=-%d:h_fov=100:v_fov=50", pitch)
 		case is180SBS:
-			dewarpFilter = "v360=hequirect:flat:in_stereo=sbs:out_stereo=2d:pitch=-15:h_fov=100:v_fov=60"
+			dewarpFilter = fmt.Sprintf("v360=hequirect:flat:in_stereo=sbs:out_stereo=2d:pitch=-%d:h_fov=100:v_fov=60", pitch)
 		case isFisheye:
-			dewarpFilter = fmt.Sprintf("v360=fisheye:flat:in_stereo=sbs:out_stereo=2d:pitch=-15:id_fov=%v:h_fov=100:v_fov=60", idFov)
+			dewarpFilter = fmt.Sprintf("v360=fisheye:flat:in_stereo=sbs:out_stereo=2d:pitch=-%d:id_fov=%v:h_fov=100:v_fov=60", pitch, idFov)
 		default:
-			dewarpFilter = "v360=hequirect:flat:in_stereo=sbs:out_stereo=2d:pitch=-15:h_fov=100:v_fov=60"
+			dewarpFilter = fmt.Sprintf("v360=hequirect:flat:in_stereo=sbs:out_stereo=2d:pitch=-%d:h_fov=100:v_fov=60", pitch)
 		}
 		if isHighBitDepth {
 			// Downsample the already scaled/dewarped image to 8-bit before handing it
