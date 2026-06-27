@@ -117,6 +117,10 @@ func RescanVolumes(id int) {
 			if len(scenes) == 1 {
 				files[i].SceneID = scenes[0].ID
 				files[i].Save()
+				if files[i].HasAlpha {
+					scenes[0].SetAlphaChromaKey()
+					scenes[0].Save()
+				}
 				scenes[0].UpdateStatus()
 				downloadSceneCover(&scenes[0], db, tlog)
 			} else {
@@ -155,6 +159,10 @@ func RescanVolumes(id int) {
 								tmp, _ := json.Marshal(pfTxt)
 								scene.FilenamesArr = string(tmp)
 								scene.Save()
+								if files[i].HasAlpha {
+									scene.SetAlphaChromaKey()
+									scene.Save()
+								}
 								models.AddAction(scene.SceneID, "match", "filenames_arr", scene.FilenamesArr)
 
 								scene.UpdateStatus()

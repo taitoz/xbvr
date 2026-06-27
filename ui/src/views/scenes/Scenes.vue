@@ -49,16 +49,8 @@ export default {
       toggleBtn.style.display = show ? 'block' : 'none'
     })
     toTop.addEventListener('click', function () {
-      scrollToTop()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     })
-
-    const scrollToTop = () => {
-      const c = document.documentElement.scrollTop || document.body.scrollTop
-      if (c > 0) {
-        window.requestAnimationFrame(scrollToTop)
-        window.scrollTo(0, c - c / 16)
-      }
-    }
   },
   beforeRouteEnter (to, from, next) {
     next(vm => {

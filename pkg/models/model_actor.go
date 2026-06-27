@@ -487,9 +487,9 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 		txList.Find(&out.Actors)
 		for idx, actor := range out.Actors {
 			if strings.ToLower(actor.Name) >= strings.ToLower(r.JumpTo.OrElse("")) {
+				cnt = idx
 				break
 			}
-			cnt = idx
 		}
 		offset = (cnt / limit) * limit
 	}

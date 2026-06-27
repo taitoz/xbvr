@@ -242,6 +242,10 @@ func (i FilesResource) matchFile(req *restful.Request, resp *restful.Response) {
 	if err == nil {
 		f.SceneID = scene.ID
 		f.Save()
+		if f.HasAlpha {
+			scene.SetAlphaChromaKey()
+			scene.Save()
+		}
 	}
 
 	// Add File to the list of Scene filenames so it will be discovered when file is moved

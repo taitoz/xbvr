@@ -168,7 +168,7 @@
                   <div v-show="activeTab == 2" class="columns is-multiline scroll">
                     <b-field :label="$t('Aka Groups')" v-if="akas.aka_groups != null &&  akas.aka_groups.length!=0" class="column is-full">
                       <div class="columns is-multiline">
-                        <div :class="['column', 'is-multiline']"
+                        <div :class="['column', 'is-multiline', 'is-2']"
                           v-for="(akaactor, idx) in akas.aka_groups" :key="idx" class="image-wrapper">
                           <ActorCard :actor="akaactor" :hideStashdb="true"/>
                         </div>
@@ -176,7 +176,7 @@
                     </b-field>
                     <b-field :label="$t('Other Actors In Groups')" v-if="akas.actors != null &&  akas.actors.length!=0" class="column is-full">
                       <div class="columns is-multiline">
-                        <div :class="['column', 'is-multiline']"
+                        <div :class="['column', 'is-multiline', 'is-2']"
                           v-for="(akaactor, idx) in akas.actors" :key="idx" class="image-wrapper">
                           <ActorCard :actor="akaactor" :hideStashdb="true"/>
                           <b-tooltip position="is-bottom" :label="$t('Remove Cast from Aka Group. Select the Aka group and Actors to remove in the Cast Filter')" multilined :delay="200">
@@ -189,7 +189,7 @@
                     </b-field>
                     <b-field :label="$t('Possible Matches')" v-if="akas.possible_akas != null &&  akas.possible_akas.length!=0" class="column is-full">
                       <div class="columns is-multiline">
-                        <div :class="['column', 'is-multiline']"
+                        <div :class="['column', 'is-multiline', 'is-2']"
                           v-for="(akaactor, idx) in akas.possible_akas" :key="idx" class="image-wrapper">
                           <ActorCard :actor="akaactor" :hideStashdb="true"/>
                           <b-tooltip position="is-bottom" :label="$t('Add Cast to Aka Group. Select the Aka group and Actors to add in the Cast Filter')" multilined :delay="200">
@@ -805,14 +805,6 @@ div.scroll {
   overflow-x: hidden;
   overflow-y: auto;
   text-align: center;
-}
-.actor-scenes .column.is-2 .card .card-image .bbox {
-  width: 100% !important;
-  height: auto !important;
-  position: relative;
-}
-.actor-scenes .column.is-2 .card .card-image .bbox:after {
-  display: none;
 }
 .attribute-container {  
   display: flex; 
