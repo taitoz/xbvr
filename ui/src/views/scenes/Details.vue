@@ -825,6 +825,7 @@ watch:{
         message: `You're about to unmatch the file <strong>${file.filename}</strong> from this scene. Afterwards, it can be matched again to this or any other scene.`,
         type: 'is-info is-wide',
         hasIcon: true,
+        customClass: 'modal-warning',
         id: 'heh',
         onConfirm: () => {
           ky.post(`/api/files/unmatch`, {json:{file_id: file.id}}).json().then(data => {
@@ -839,6 +840,7 @@ watch:{
         message: `You're about to clear the video preview for this scene. The preview will be regenerated the next time previews are generated.`,
         type: 'is-warning is-wide',
         hasIcon: true,
+        customClass: 'modal-warning',
         onConfirm: () => {
           ky.post(`/api/scene/${this.item.scene_id}/clear-preview`, { json: {} }).json().then(data => {
             this.$store.commit('overlay/showDetails', { scene: data })

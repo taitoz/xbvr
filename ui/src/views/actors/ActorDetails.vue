@@ -345,10 +345,11 @@ export default {
     },  
     methods: {
     getImageURL (u, size) {
+      if (!u) return '/ui/images/blank_female_profile.png'
       if (u.startsWith('http') || u.startsWith('https')) {
         return '/img/' + size + '/' + u.replace('://', ':/')
       } else {
-        return u
+        return encodeURI(u)
       }
     },
     getIndicatorURL (idx) {      

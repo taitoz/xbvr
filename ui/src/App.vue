@@ -107,4 +107,8 @@ export default {
   .modal-background {
     background-color: rgba(0, 0, 0, .40) !important;
   }
+  .modal-warning .animation-content .modal-card {
+    height: auto !important;
+    max-height: 40vh !important;
+  }
 </style>
