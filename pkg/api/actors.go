@@ -568,16 +568,50 @@ func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response
 
 	var srcReader io.ReadCloser
 	if strings.HasPrefix(r.Url, "http://") || strings.HasPrefix(r.Url, "https://") {
-		// Download from URL
-		httpResp, err := http.Get(r.Url)
+		// Download from external URL with browser-like headers to avoid hotlink blocks
+		client := &http.Client{}
+		httpReq, err := http.NewRequest("GET", r.Url, nil)
+		if err != nil {
+			log.Errorf("setMainImage: failed to build request for %s: %v", r.Url, err)
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+		httpReq.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+		// Use the origin of the image URL as Referer (find slash after scheme+host)
+		if schemeEnd := strings.Index(r.Url, "://"); schemeEnd != -1 {
+			if pathStart := strings.Index(r.Url[schemeEnd+3:], "/"); pathStart != -1 {
+				httpReq.Header.Set("Referer", r.Url[:schemeEnd+3+pathStart]+"/")
+			} else {
+				httpReq.Header.Set("Referer", r.Url+"/")
+			}
+		}
+		httpResp, err := client.Do(httpReq)
 		if err != nil {
 			log.Errorf("setMainImage: failed to download %s: %v", r.Url, err)
 			resp.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		ct := httpResp.Header.Get("Content-Type")
+		if strings.Contains(ct, "text/html") {
+			httpResp.Body.Close()
+			log.Errorf("setMainImage: server returned HTML instead of image for %s (hotlink blocked?)", r.Url)
+			resp.WriteHeader(http.StatusBadGateway)
+			return
+		}
 		srcReader = httpResp.Body
+	} else if strings.HasPrefix(r.Url, "/myfiles/") {
+		// Serve from local myfiles directory
+		localPath := filepath.Join(common.MyFilesDir, strings.TrimPrefix(r.Url, "/myfiles/"))
+		f, err := os.Open(localPath)
+		if err != nil {
+			log.Errorf("setMainImage: failed to open local %s: %v", localPath, err)
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		srcReader = f
 	} else {
-		// Local file copy
+		// Absolute local file path
 		f, err := os.Open(r.Url)
 		if err != nil {
 			log.Errorf("setMainImage: failed to open %s: %v", r.Url, err)
