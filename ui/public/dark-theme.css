@@ -940,6 +940,11 @@ fieldset[disabled] .button.is-link {
 	height: 94% !important;
 }
 
+.modal-warning .modal-card {
+	height: auto !important;
+	max-height: 40vh !important;
+}
+
 .columns {
 	margin-top: 0 !important;
 }

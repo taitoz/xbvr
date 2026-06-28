@@ -659,6 +659,23 @@ func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response
 	}
 
 	localURL := "/myfiles/actors/" + safeName + ext
+
+	// Remove any stale /myfiles/actors/<safeName>.* entries (different extension) from image_arr
+	if actor.ImageArr != "" && actor.ImageArr != "[]" {
+		var arr []string
+		if json.Unmarshal([]byte(actor.ImageArr), &arr) == nil {
+			prefix := "/myfiles/actors/" + safeName + "."
+			filtered := arr[:0]
+			for _, item := range arr {
+				if !strings.HasPrefix(item, prefix) {
+					filtered = append(filtered, item)
+				}
+			}
+			b, _ := json.Marshal(filtered)
+			actor.ImageArr = string(b)
+		}
+	}
+
 	actor.ImageUrl = localURL
 	actor.AddToImageArray(localURL)
 	actor.Save()
