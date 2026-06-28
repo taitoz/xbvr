@@ -108,7 +108,7 @@ export default {
       if (u.startsWith('http')) {
         return '/img/700x/' + u.replace('://', ':/')
       } else {
-        return u
+        return encodeURI(u)
       }
     },
     showDetails (actor) {

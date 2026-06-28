@@ -564,7 +564,15 @@ func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response
 	safeName := strings.ReplaceAll(actor.Name, string(os.PathSeparator), "_")
 	safeName = strings.ReplaceAll(safeName, "/", "_")
 	safeName = strings.ReplaceAll(safeName, "\\", "_")
-	destPath := filepath.Join(actorsDir, safeName+".jpg")
+
+	// Determine file extension from source
+	ext := ".jpg"
+	ctToExt := map[string]string{
+		"image/webp": ".webp",
+		"image/png":  ".png",
+		"image/gif":  ".gif",
+		"image/jpeg": ".jpg",
+	}
 
 	var srcReader io.ReadCloser
 	if strings.HasPrefix(r.Url, "http://") || strings.HasPrefix(r.Url, "https://") {
@@ -599,10 +607,20 @@ func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response
 			resp.WriteHeader(http.StatusBadGateway)
 			return
 		}
+		// Determine extension from Content-Type
+		for mime, e := range ctToExt {
+			if strings.Contains(ct, mime) {
+				ext = e
+				break
+			}
+		}
 		srcReader = httpResp.Body
 	} else if strings.HasPrefix(r.Url, "/myfiles/") {
 		// Serve from local myfiles directory
 		localPath := filepath.Join(common.MyFilesDir, strings.TrimPrefix(r.Url, "/myfiles/"))
+		if e := filepath.Ext(localPath); e != "" {
+			ext = e
+		}
 		f, err := os.Open(localPath)
 		if err != nil {
 			log.Errorf("setMainImage: failed to open local %s: %v", localPath, err)
@@ -612,6 +630,9 @@ func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response
 		srcReader = f
 	} else {
 		// Absolute local file path
+		if e := filepath.Ext(r.Url); e != "" {
+			ext = e
+		}
 		f, err := os.Open(r.Url)
 		if err != nil {
 			log.Errorf("setMainImage: failed to open %s: %v", r.Url, err)
@@ -622,6 +643,7 @@ func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response
 	}
 	defer srcReader.Close()
 
+	destPath := filepath.Join(actorsDir, safeName+ext)
 	destFile, err := os.Create(destPath)
 	if err != nil {
 		log.Errorf("setMainImage: failed to create %s: %v", destPath, err)
@@ -636,7 +658,7 @@ func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response
 		return
 	}
 
-	localURL := "/myfiles/actors/" + safeName + ".jpg"
+	localURL := "/myfiles/actors/" + safeName + ext
 	actor.ImageUrl = localURL
 	actor.AddToImageArray(localURL)
 	actor.Save()
