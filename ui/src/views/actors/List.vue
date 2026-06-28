@@ -103,6 +103,10 @@ export default {
       current: 1,      
     }
   },
+  created () {
+    const page = parseInt(this.$route.query.page) || 1
+    this.current = page
+  },
   computed: {
     cardSize: {
       get () {
@@ -208,12 +212,20 @@ export default {
       this.$router.push({
         name: 'actors',
         query: {
-          q: this.$store.getters['actorList/filterQueryParams']
+          q: this.$store.getters['actorList/filterQueryParams'],
+          page: this.current
         }
       })
     },
-    async pageChanged () {      
-      this.$store.state.actorList.offset = (this.current -1) * this.$store.state.actorList.limit
+    async pageChanged () {
+      this.$store.state.actorList.offset = (this.current - 1) * this.$store.state.actorList.limit
+      this.$router.push({
+        name: 'actors',
+        query: {
+          ...this.$route.query,
+          page: this.current
+        }
+      }).catch(() => {})
       this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset })
     },
     nextpage () {

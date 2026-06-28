@@ -39,7 +39,7 @@
                   </template>
                 </b-carousel>
                 <div class="flexcentre">
-                <b-button class="button is-primary is-small" style="display: flex; justify-content: center;" v-on:click="setActorImage()">{{$t('Set Main Image')}}</b-button>
+                <b-button class="button is-primary is-small" style="display: flex; justify-content: center;" v-on:click="setMainActorImage()">{{$t('Set Main Image')}}</b-button>
                 <b-button v-if="images.length != 0" class="button is-primary is-small" style="display: flex; justify-content: center;margin-left: 1em;" v-on:click="deleteActorImage()">{{$t('Delete Image')}}</b-button>
                 </div>
               </b-tab-item>
@@ -92,7 +92,12 @@
                       <actor-favourite-button :actor="actor"/>&nbsp;
                       <actor-watchlist-button :actor="actor"/>&nbsp;
                       <actor-edit-button :actor="actor"/>&nbsp;
-                      <link-stashdb-button :item="actor" objectType="actor" />
+                      <link-stashdb-button :item="actor" objectType="actor" />&nbsp;
+                      <b-tooltip :label="$t('Delete actor')" position="is-left" :delay="250">
+                        <button class="button is-small is-danger is-outlined" @click="deleteActor">
+                          <b-icon pack="mdi" icon="delete-outline" size="is-small"></b-icon>
+                        </button>
+                      </b-tooltip>
                     </div>
                   </div>
                 </div>
@@ -488,6 +493,28 @@ export default {
         this.carouselSlide=0
         this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
       })    
+    },
+    setMainActorImage () {
+      ky.post('/api/actor/setmainimage', {
+      json: {
+        actor_id: this.actor.id,
+        url: this.images[this.carouselSlide]
+      }}).json().then(data => {
+        this.$store.state.overlay.actordetails.actor = data
+        this.carouselSlide = 0
+        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
+        this.$buefy.toast.open({ message: 'Main image saved to myfiles/actors', type: 'is-success' })
+      }).catch(() => {
+        this.$buefy.toast.open({ message: 'Failed to save main image', type: 'is-danger' })
+      })
+    },
+    deleteActor () {
+      ky.delete(`/api/actor/delete/${this.actor.id}`).json().then(() => {
+        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset - this.$store.state.actorList.limit })
+        this.$store.commit('overlay/hideActorDetails')
+      }).catch(err => {
+        this.$buefy.toast.open({ message: `Failed to delete actor: ${err}`, type: 'is-danger' })
+      })
     },
     deleteActorImage (val) {
       ky.delete('/api/actor/delimage', {

@@ -43,7 +43,10 @@ export default {
         vm.$store.commit('actorList/stateFromQuery', to.query)
       }
       vm.$store.dispatch('optionsWeb/load')
-      vm.$store.dispatch('actorList/load', { offset: 0 })
+      const page = parseInt(to.query.page) || 1
+      const limit = vm.$store.state.actorList.limit
+      const offset = (page - 1) * limit
+      vm.$store.dispatch('actorList/load', { offset })
       vm.$store.dispatch('optionsAdvanced/load')
     })
   },
@@ -51,7 +54,10 @@ export default {
     if (to.query !== undefined) {
       this.$store.commit('actorList/stateFromQuery', to.query)
     }
-    this.$store.dispatch('actorList/load', { offset: 0 })
+    const page = parseInt(to.query.page) || 1
+    const limit = this.$store.state.actorList.limit
+    const offset = (page - 1) * limit
+    this.$store.dispatch('actorList/load', { offset })
     next()
   },
   computed: {

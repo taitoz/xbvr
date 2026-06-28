@@ -2,7 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -10,6 +13,7 @@ import (
 
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
+	"github.com/xbapps/xbvr/pkg/common"
 	"github.com/xbapps/xbvr/pkg/models"
 	"github.com/xbapps/xbvr/pkg/scrape"
 )
@@ -59,6 +63,9 @@ func (i ActorResource) WebService() *restful.WebService {
 		Writes(models.Actor{}))
 
 	ws.Route(ws.POST("/setimage").To(i.setActorImage).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes(models.Actor{}))
+	ws.Route(ws.POST("/setmainimage").To(i.setMainImage).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(models.Actor{}))
 	ws.Route(ws.DELETE("/delimage").To(i.deleteActorImage).
@@ -525,6 +532,84 @@ func (i ActorResource) setActorImage(req *restful.Request, resp *restful.Respons
 
 	aa := models.ActionActor{ActorID: actor.ID, ActionType: "setimage", Source: "edit_actor", ChangedColumn: "image_url", NewValue: actor.ImageUrl}
 	aa.Save()
+	resp.WriteHeaderAndEntity(http.StatusOK, actor)
+}
+
+func (i ActorResource) setMainImage(req *restful.Request, resp *restful.Response) {
+	var r RequestSetActorImage
+	err := req.ReadEntity(&r)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	if r.ActorID == 0 || r.Url == "" {
+		return
+	}
+
+	db, _ := models.GetDB()
+	defer db.Close()
+
+	var actor models.Actor
+	err = actor.GetIfExistByPKWithSceneAvg(r.ActorID)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	actorsDir := filepath.Join(common.MyFilesDir, "actors")
+	_ = os.MkdirAll(actorsDir, os.ModePerm)
+
+	// Sanitize actor name for use as filename
+	safeName := strings.ReplaceAll(actor.Name, string(os.PathSeparator), "_")
+	safeName = strings.ReplaceAll(safeName, "/", "_")
+	safeName = strings.ReplaceAll(safeName, "\\", "_")
+	destPath := filepath.Join(actorsDir, safeName+".jpg")
+
+	var srcReader io.ReadCloser
+	if strings.HasPrefix(r.Url, "http://") || strings.HasPrefix(r.Url, "https://") {
+		// Download from URL
+		httpResp, err := http.Get(r.Url)
+		if err != nil {
+			log.Errorf("setMainImage: failed to download %s: %v", r.Url, err)
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		srcReader = httpResp.Body
+	} else {
+		// Local file copy
+		f, err := os.Open(r.Url)
+		if err != nil {
+			log.Errorf("setMainImage: failed to open %s: %v", r.Url, err)
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		srcReader = f
+	}
+	defer srcReader.Close()
+
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		log.Errorf("setMainImage: failed to create %s: %v", destPath, err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer destFile.Close()
+
+	if _, err := io.Copy(destFile, srcReader); err != nil {
+		log.Errorf("setMainImage: failed to write %s: %v", destPath, err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	localURL := "/myfiles/actors/" + safeName + ".jpg"
+	actor.ImageUrl = localURL
+	actor.AddToImageArray(localURL)
+	actor.Save()
+
+	aa := models.ActionActor{ActorID: actor.ID, ActionType: "setmainimage", Source: "edit_actor", ChangedColumn: "image_url", NewValue: localURL}
+	aa.Save()
+
 	resp.WriteHeaderAndEntity(http.StatusOK, actor)
 }
 
