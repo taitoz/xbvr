@@ -945,6 +945,10 @@ fieldset[disabled] .button.is-link {
 	max-height: 40vh !important;
 }
 
+.dialog .modal-card {
+	height: fit-content !important;
+}
+
 .columns {
 	margin-top: 0 !important;
 }
