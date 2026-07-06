@@ -453,7 +453,7 @@ export default {
     measurements(){      
       let metric_measurements=""
       if (this.actor.band_size != 0) {
-        metric_measurements=this.actor.band_size
+        metric_measurements=Math.round(this.actor.band_size * 2.54)
       }
       if (this.actor.cup_size != ''){
         metric_measurements +=  this.actor.cup_size        

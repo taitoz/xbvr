@@ -949,6 +949,18 @@ fieldset[disabled] .button.is-link {
 	height: fit-content !important;
 }
 
+.scene_title {
+	font-size: 13px;
+}
+
+.column {
+	padding: .9rem;
+}
+
+.tag:not(body) {
+	font-size: .6rem;
+}
+
 .columns {
 	margin-top: 0 !important;
 }

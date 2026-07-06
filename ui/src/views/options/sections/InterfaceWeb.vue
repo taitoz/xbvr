@@ -68,6 +68,11 @@
               </b-switch>
             </b-field>
             <b-field>
+              <b-switch v-model="sceneDate" type="is-dark">
+                show Release Date
+              </b-switch>
+            </b-field>
+            <b-field>
               <b-switch v-model="sceneCuepoint" type="is-dark">
                 show Cuepoints button
               </b-switch>
@@ -266,6 +271,14 @@ export default {
       },
       set (value) {
         this.$store.state.optionsWeb.web.sceneDuration = value
+      }
+    },
+    sceneDate: {
+      get () {
+        return this.$store.state.optionsWeb.web.sceneDate
+      },
+      set (value) {
+        this.$store.state.optionsWeb.web.sceneDate = value
       }
     },
     sceneCuepoint: {
