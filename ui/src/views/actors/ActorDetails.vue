@@ -457,8 +457,8 @@ export default {
       let imperial_measurements=""
       let metric_measurements=""
       if (this.actor.band_size != 0) {
-        imperial_measurements=this.actor.band_size
-        metric_measurements=Math.round(this.actor.band_size * 2.54)
+        imperial_measurements=Math.round(this.actor.band_size / 2.54)
+        metric_measurements=this.actor.band_size
       }
       if (this.actor.cup_size != ''){
         imperial_measurements +=  this.actor.cup_size        
@@ -469,16 +469,16 @@ export default {
           imperial_measurements += '-'
           metric_measurements += '-'
         }
-        imperial_measurements += this.actor.waist_size
-        metric_measurements += Math.round(this.actor.waist_size * 2.54)
+        imperial_measurements += Math.round(this.actor.waist_size / 2.54)
+        metric_measurements += this.actor.waist_size
       }
       if (this.actor.hip_size != 0) {
         if (imperial_measurements!='') {
           imperial_measurements += '-'
           metric_measurements += '-'
         }
-        imperial_measurements += this.actor.hip_size
-        metric_measurements += Math.round(this.actor.hip_size * 2.54)
+        imperial_measurements += Math.round(this.actor.hip_size / 2.54)
+        metric_measurements += this.actor.hip_size
       } 
       if (imperial_measurements==''){
         return ''
