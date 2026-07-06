@@ -122,7 +122,7 @@
         </tr>
         <tr>
           <td class="slider-title"><strong><small>{{ $t("Bra/cup size") }}:</small></strong></td>
-          <td><b-slider :min="0" :max="9" :step="1" :tooltip="false" :custom-formatter="formatCupSize" v-model="cupSizes" lazy class="slider"></b-slider></td>
+          <td><b-slider :min="0" :max="9" :step="1" :tooltip="true" :custom-formatter="formatCupSize" v-model="cupSizes" lazy class="slider"></b-slider></td>
         </tr>
         <tr>
           <td class="slider-title"><strong><small>{{ $t("Scenes") }}:</small></strong></td>

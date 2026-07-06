@@ -142,7 +142,7 @@
                       <strong class="attribute-heading">{{ $t('Measurements') }}:</strong> <small class="attribute-data">{{ measurements() }}</small>
                     </b-field>
                     <b-field v-if="actor.band_size != 0 && actor.cup_size != ''">
-                      <strong class="attribute-heading">{{ $t('Bra/cup size') }}:</strong> <small class="attribute-data">{{ actor.band_size }}{{ actor.cup_size }}</small>
+                      <strong class="attribute-heading">{{ $t('Bra/cup size') }}:</strong> <small class="attribute-data">{{ actor.cup_size }}</small>
                     </b-field>
                     <b-field v-if="actor.breast_type != ''">
                       <strong class="attribute-heading">{{ $t('Breast Type') }}:</strong> <small class="attribute-data">{{ actor.breast_type }}</small>
@@ -483,7 +483,7 @@ export default {
       if (imperial_measurements==''){
         return ''
       }
-      return imperial_measurements + " inch / " + metric_measurements + " cm"
+      return metric_measurements + " cm / " + imperial_measurements + " inch"
     },
     joinArray(jsonArr){
       const arr = JSON.parse(jsonArr);
