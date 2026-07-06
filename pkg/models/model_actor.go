@@ -70,6 +70,8 @@ type RequestActorList struct {
 	MaxHeight      optional.Int      `json:"max_height"`
 	MinWeight      optional.Int      `json:"min_weight"`
 	MaxWeight      optional.Int      `json:"max_weight"`
+	MinCupSize     optional.Int      `json:"min_cup_size"`
+	MaxCupSize     optional.Int      `json:"max_cup_size"`
 	MinCount       optional.Int      `json:"min_count"`
 	MaxCount       optional.Int      `json:"max_count"`
 	MinAvail       optional.Int      `json:"min_avail"`
@@ -364,6 +366,12 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 	}
 	if r.MaxWeight.OrElse(150) < 150 {
 		tx = tx.Where("actors.weight <= ?", r.MaxWeight.OrElse(150))
+	}
+	if r.MinCupSize.OrElse(0) > 0 {
+		tx = tx.Where("actors.cup_size >= ?", r.MinCupSize.OrElse(0))
+	}
+	if r.MaxCupSize.OrElse(9) < 9 {
+		tx = tx.Where("actors.cup_size <= ?", r.MaxCupSize.OrElse(9))
 	}
 	if r.MinCount.OrElse(0) > 0 {
 		tx = tx.Where("actors.`count` >= ?", r.MinCount.OrElse(0))
