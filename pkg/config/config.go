@@ -39,6 +39,7 @@ type ObjectConfig struct {
 		SceneWatched         bool   `default:"false" json:"sceneWatched"`
 		SceneEdit            bool   `default:"false" json:"sceneEdit"`
 		SceneDuration        bool   `default:"false" json:"sceneDuration"`
+		SceneDate            bool   `default:"true" json:"sceneDate"`
 		SceneCuepoint        bool   `default:"true" json:"sceneCuepoint"`
 		ShowHspFile          bool   `default:"true" json:"showHspFile"`
 		ShowSubtitlesFile    bool   `default:"true" json:"showSubtitlesFile"`

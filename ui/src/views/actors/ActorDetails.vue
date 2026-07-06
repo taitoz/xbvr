@@ -141,6 +141,9 @@
                     <b-field v-if="measurements() != ''">
                       <strong class="attribute-heading">{{ $t('Measurements') }}:</strong> <small class="attribute-data">{{ measurements() }}</small>
                     </b-field>
+                    <b-field v-if="actor.band_size != 0 && actor.cup_size != ''">
+                      <strong class="attribute-heading">{{ $t('Bra/cup size') }}:</strong> <small class="attribute-data">{{ actor.band_size }}{{ actor.cup_size }}</small>
+                    </b-field>
                     <b-field v-if="actor.breast_type != ''">
                       <strong class="attribute-heading">{{ $t('Breast Type') }}:</strong> <small class="attribute-data">{{ actor.breast_type }}</small>
                     </b-field>
@@ -451,29 +454,36 @@ export default {
       return active
     },
     measurements(){      
+      let imperial_measurements=""
       let metric_measurements=""
       if (this.actor.band_size != 0) {
+        imperial_measurements=this.actor.band_size
         metric_measurements=Math.round(this.actor.band_size * 2.54)
       }
       if (this.actor.cup_size != ''){
-        metric_measurements +=  this.actor.cup_size        
+        imperial_measurements +=  this.actor.cup_size        
+        metric_measurements += this.actor.cup_size        
       }
       if (this.actor.waist_size != 0) {
-        if (metric_measurements!='') {
+        if (imperial_measurements!='') {
+          imperial_measurements += '-'
           metric_measurements += '-'
         }
-        metric_measurements += this.actor.waist_size
+        imperial_measurements += this.actor.waist_size
+        metric_measurements += Math.round(this.actor.waist_size * 2.54)
       }
       if (this.actor.hip_size != 0) {
-        if (metric_measurements!='') {
+        if (imperial_measurements!='') {
+          imperial_measurements += '-'
           metric_measurements += '-'
         }
-        metric_measurements += this.actor.hip_size
+        imperial_measurements += this.actor.hip_size
+        metric_measurements += Math.round(this.actor.hip_size * 2.54)
       } 
-      if (metric_measurements==''){
+      if (imperial_measurements==''){
         return ''
       }
-      return metric_measurements
+      return imperial_measurements + " inch / " + metric_measurements + " cm"
     },
     joinArray(jsonArr){
       const arr = JSON.parse(jsonArr);
