@@ -445,40 +445,35 @@ export default {
       active +=  "-"      
       if (this.actor.end_year > 0) {
         active += this.actor.end_year 
+      } else {
+        active += "Present"
       }
       return active
     },
     measurements(){      
       let metric_measurements=""
-      let imperial_measurements=""
       if (this.actor.band_size != 0) {
         metric_measurements=this.actor.band_size
-        imperial_measurements=Math.round(this.actor.band_size / 2.54)
       }
       if (this.actor.cup_size != ''){
         metric_measurements +=  this.actor.cup_size        
-        imperial_measurements += this.actor.cup_size        
       }
       if (this.actor.waist_size != 0) {
         if (metric_measurements!='') {
           metric_measurements += '-'
-          imperial_measurements += '-'
         }
         metric_measurements += this.actor.waist_size
-        imperial_measurements += Math.round(this.actor.waist_size  / 2.54)
       }
       if (this.actor.hip_size != 0) {
         if (metric_measurements!='') {
           metric_measurements += '-'
-          imperial_measurements += '-'
         }
         metric_measurements += this.actor.hip_size
-        imperial_measurements += Math.round(this.actor.hip_size / 2.54)
       } 
       if (metric_measurements==''){
         return ''
       }
-      return imperial_measurements + " / " + metric_measurements
+      return metric_measurements
     },
     joinArray(jsonArr){
       const arr = JSON.parse(jsonArr);
