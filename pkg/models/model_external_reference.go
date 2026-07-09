@@ -1033,6 +1033,55 @@ func (scrapeRules ActorScraperConfig) buildGenericActorScraperRules() {
 	}})
 
 	scrapeRules.GenericActorScrapingConfig["javdatabase scrape"] = siteDetails
+
+	// Babepedia: standalone actor database (not a VR site)
+	// Usage: add {"url":"https://www.babepedia.com/babe/Name_Surname","type":"babepedia scrape"} to actor urls
+	// Measurements are rendered client-side via JS ("show conversions"), so only server-side fields are scraped.
+	siteDetails = GenericScraperRuleSet{}
+	siteDetails.Domain = "www.babepedia.com"
+	// Profile image
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "image_url", Selector: `div#profimg img`, ResultType: "attr", Attribute: "src",
+		PostProcessing: []PostProcessing{{Function: "AbsoluteUrl"}},
+	})
+	// Biography
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "biography", Selector: `p#biotext`,
+	})
+	// Aliases (aka links shown at top of page)
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "aliases", Selector: `div#aka-block a, p.akablock a`,
+	})
+	// Birth year (link href contains born-in-the-year)
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "birth_date", Selector: `div#personal-info-block a[href*="born-in-the-year"], div#personal-info-block a[href*="birthday"]`,
+		PostProcessing: []PostProcessing{
+			{Function: "RegexString", Params: []string{`(\d{4})`, "1"}},
+		},
+	})
+	// Nationality (country link in personal info block)
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "nationality", Selector: `div#personal-info-block a[href*="topbabespercountry"]`,
+		PostProcessing: []PostProcessing{{Function: "Lookup Country"}},
+	})
+	// Ethnicity (caucasian/asian/etc links)
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "ethnicity", Selector: `div#personal-info-block a[href*="caucasian"], div#personal-info-block a[href*="asian"], div#personal-info-block a[href*="latina"], div#personal-info-block a[href*="ebony"]`,
+	})
+	// Hair color
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "hair_color", Selector: `div#personal-info-block a[href$="top100"]`,
+		PostProcessing: []PostProcessing{{Function: "RegexString", Params: []string{`(?i)(blonde|brunette|black|red|brown|auburn|grey|gray|white|platinum)(hair)?top`, "1"}}}},
+	)
+	// Eye color
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "eye_color", Selector: `div#personal-info-block a[href*="eyes"]`,
+	})
+	// Breast type
+	siteDetails.SiteRules = append(siteDetails.SiteRules, GenericActorScraperRule{
+		XbvrField: "breast_type", Selector: `div#personal-info-block a[href*="breast"], div#personal-info-block a[href*="enhanced"], div#personal-info-block a[href*="natural"]`,
+	})
+	scrapeRules.GenericActorScrapingConfig["babepedia scrape"] = siteDetails
 }
 
 // Loads custom rules from actor_scrapers_examples.json
