@@ -256,16 +256,17 @@ def scrape_babepedia(babe_name):
                 src = "https://www.babepedia.com" + src
             result["image_url"] = src
 
-    # all gallery images on the page
+    # gallery images: full-size hrefs from user-uploads gallery and profbox2
     all_images = []
-    for img in soup.select("img[src]"):
-        src = img.get("src", "")
-        if not src or "babepedia.com/pics/" not in src and not src.startswith("/pics/"):
-            continue
-        if src.startswith("/"):
-            src = "https://www.babepedia.com" + src
-        if src not in all_images:
-            all_images.append(src)
+    for selector in ["div.gallery.useruploads2 a.img", "div#profbox2 a.img"]:
+        for a in soup.select(selector):
+            href = a.get("href", "")
+            if not href:
+                continue
+            if href.startswith("/"):
+                href = "https://www.babepedia.com" + href
+            if href not in all_images:
+                all_images.append(href)
     if all_images:
         result["extra_images"] = all_images
         print(f"\nFound {len(all_images)} gallery images: {all_images[:3]}")
