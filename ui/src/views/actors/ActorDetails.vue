@@ -25,8 +25,9 @@
               <b-tab-item :label="$t('Gallery')">
                 <b-carousel v-model="carouselSlide" @change="scrollToActiveIndicator" :autoplay="false" :indicator-inside="false">
                   <b-carousel-item v-for="(carousel, i) in images" :key="i">
-                    <div class="image is-1by1 is-full"
-                         v-bind:style="{backgroundImage: `url('${getImageURL(carousel, '700,fit')}')`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}"></div>
+                    <div class="image is-1by1 is-full" style="display:flex;align-items:center;justify-content:center;">
+                      <img :src="getImageURL(carousel, '700,fit')" style="max-width:100%;max-height:100%;object-fit:contain;" />
+                    </div>
                   </b-carousel-item>
                   <template slot="indicators" slot-scope="props">
                       <span class="al image" style="width:max-content;">
