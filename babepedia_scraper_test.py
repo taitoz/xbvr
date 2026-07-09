@@ -107,16 +107,27 @@ def parse_measurements(text):
     return None
 
 
-def scrape_babepedia(babe_name):
+def scrape_babepedia(babe_name, retries=3):
+    import time
     url = f"https://www.babepedia.com/babe/{babe_name}"
     print(f"\n{'='*60}")
     print(f"Scraping: {url}")
     print('='*60)
 
-    resp = requests.get(url, headers=HEADERS, timeout=15)
-    if resp.status_code != 200:
-        print(f"ERROR: HTTP {resp.status_code}")
-        return
+    for attempt in range(1, retries + 1):
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        if resp.status_code == 200:
+            break
+        elif resp.status_code == 429:
+            wait = 30 * attempt
+            print(f"  [429] Rate limited, waiting {wait}s (attempt {attempt}/{retries})...")
+            time.sleep(wait)
+        else:
+            print(f"ERROR: HTTP {resp.status_code}")
+            return None
+    else:
+        print(f"ERROR: gave up after {retries} attempts (429)")
+        return None
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -648,7 +659,7 @@ if __name__ == "__main__":
     parser.add_argument("--update-all", action="store_true", help="Update all actors in DB that have babepedia URL")
     parser.add_argument("--all-available", action="store_true", help="Scrape all actors with is_available=1 scenes by name")
     parser.add_argument("--skip", type=int, default=0, help="Skip first N actors (for resuming --all-available)")
-    parser.add_argument("--delay", type=float, default=2.0, help="Delay in seconds between requests (default: 2)")
+    parser.add_argument("--delay", type=float, default=5.0, help="Delay in seconds between requests (default: 5)")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing non-empty fields")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be updated without writing")
     parser.add_argument("--db", default="G:/$XBVR/xbvr/main.db".replace("$", "$"), help="Path to main.db")
