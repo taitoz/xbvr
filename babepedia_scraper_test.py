@@ -537,24 +537,6 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
     else:
         print(f"  [SKIP] image_arr: all images already present")
 
-    # aliases: merge new aliases into existing JSON array
-    new_aliases_str = scraped.get("aliases", "")
-    if new_aliases_str:
-        try:
-            existing_aliases = json.loads(row["aliases"] or "[]")
-        except Exception:
-            existing_aliases = []
-        added = []
-        for alias in [a.strip() for a in new_aliases_str.split(",") if a.strip()]:
-            if alias not in existing_aliases and alias != actor_name:
-                existing_aliases.append(alias)
-                added.append(alias)
-        if added:
-            updates["aliases"] = json.dumps(existing_aliases)
-            print(f"  [ADD]  aliases: {added}")
-        else:
-            print(f"  [SKIP] aliases: no new aliases")
-
     if not updates:
         print("  [DB] No fields to update")
         conn.close()
