@@ -222,8 +222,15 @@ def scrape_babepedia(babe_name):
             elif "piercing" in label and value_text.lower() not in ("no", "none", ""):
                 items = [t.strip() for t in value_text.split(";") if t.strip()]
                 result["piercings"] = items
+            elif "nationality" in label:
+                # extract text from parentheses: "(American), (French)" -> "American"
+                m = re.search(r'\(([^)]+)\)', value_text)
+                if m:
+                    result["nationality"] = lookup_country(m.group(1))
             elif "boob" in label or ("breast" in label and "type" not in label):
-                result["breast_type"] = link_text or value_text
+                # strip any trailing link text like "(more info)"
+                clean_val = re.sub(r'\s*\([^)]*\)\s*$', '', value_text).strip()
+                result["breast_type"] = link_text if link_href and '#' not in link_href else (clean_val or link_text)
             elif "measurement" in label:
                 parsed = parse_measurements(value_text)
                 if parsed:
@@ -243,7 +250,7 @@ def scrape_babepedia(babe_name):
             href = a.get("href", "")
             text = a.text.strip()
             print(f"  [{text}] href={href}")
-            if "topbabespercountry" in href:
+            if "topbabespercountry" in href and "nationality" not in result:
                 result["nationality"] = lookup_country(text)
             elif any(x in href for x in ["fake", "realbreast", "naturalbreast", "enhancedbreast",
                                           "top100fakebreasts", "top100realbreasts"]):
