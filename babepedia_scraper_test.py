@@ -190,6 +190,13 @@ def scrape_babepedia(babe_name):
                 if m:
                     result["band_size"] = inch_to_cm(m.group(1))
                     result["cup_size"] = m.group(2).upper()
+            elif "years active" in label or "career" in label:
+                # e.g. "2020-2022 (started around 23 years old; 2 years active)"
+                m = re.search(r'(\d{4})[^\d]*(\d{4})?', value_text)
+                if m:
+                    result["start_year"] = int(m.group(1))
+                    if m.group(2):
+                        result["end_year"] = int(m.group(2))
             elif "ethnic" in label:
                 result["ethnicity"] = link_text or value_text
             elif "tattoo" in label and value_text.lower() not in ("no", "none", ""):
@@ -421,11 +428,13 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
             updates[col] = json.dumps(val)
             print(f"  [SET]  {col}: {val}")
 
-    # Integer fields: height, weight, band_size
+    # Integer fields
     for scraped_key, col in [
-        ("height",    "height"),
-        ("weight",    "weight"),
-        ("band_size", "band_size"),
+        ("height",     "height"),
+        ("weight",     "weight"),
+        ("band_size",  "band_size"),
+        ("start_year", "start_year"),
+        ("end_year",   "end_year"),
     ]:
         val = scraped.get(scraped_key)
         if not val:
