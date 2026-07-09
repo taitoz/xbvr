@@ -400,7 +400,8 @@ DB_FIELD_MAP = {
 
 def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry_run=False):
     """Apply scraped fields to the actors table row."""
-    import sqlite3, json, datetime
+    import sqlite3, json
+    from datetime import datetime, timezone
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -542,7 +543,7 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         conn.close()
         return
 
-    updates["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     if dry_run:
         print(f"  [DRY-RUN] Would update {list(updates.keys())}")
