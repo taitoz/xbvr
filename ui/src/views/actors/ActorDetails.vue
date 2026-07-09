@@ -150,6 +150,9 @@
                     <b-field v-if="actor.aliases != '' && actor.aliases != '[]'">
                       <strong class="attribute-heading">{{ $t('Aliases') }}:</strong> <small class="attribute-long-data">{{ joinArray(actor.aliases) }}</small>
                     </b-field>
+                    <b-field v-if="$store.state.optionsAdvanced.advanced.showInternalSceneId">
+                      <strong class="attribute-heading">{{ $t('Internal ID') }}:</strong> <small class="attribute-data">{{ actor.id }}</small>
+                    </b-field>
                     <b-field v-if="actor.tattoos != '' && actor.tattoos != '[]'">
                       <strong class="attribute-heading">{{ $t('Tattoos') }}:</strong> <small class="attribute-long-data">{{ joinArray(actor.tattoos) }}</small>
                     </b-field>
@@ -461,8 +464,7 @@ export default {
         metric_measurements=this.actor.band_size
       }
       if (this.actor.cup_size != ''){
-        imperial_measurements +=  this.actor.cup_size        
-        metric_measurements += this.actor.cup_size        
+        imperial_measurements +=  this.actor.cup_size
       }
       if (this.actor.waist_size != 0) {
         if (imperial_measurements!='') {

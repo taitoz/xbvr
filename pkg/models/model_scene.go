@@ -1222,6 +1222,8 @@ func queryScenes(db *gorm.DB, r RequestSceneList) (*gorm.DB, *gorm.DB) {
 		}
 	case "scene_id_desc":
 		tx = tx.Order("scene_id desc")
+	case "actor_asc":
+		tx = tx.Order("(select min(a.name) from scene_cast sc join actors a on a.id=sc.actor_id where sc.scene_id=scenes.id) asc")
 	case "site_asc":
 		tx = tx.Order("scenes.site")
 	case "random":
