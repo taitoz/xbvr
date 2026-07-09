@@ -14,7 +14,7 @@ Usage:
     # Update DB for ALL actors that have a babepedia scrape URL in their urls field:
     python babepedia_scraper_test.py --update-all
 
-DB path defaults to G:/\$XBVR/xbvr/main.db, override with --db PATH
+DB path defaults to G:/USD_XBVR/xbvr/main.db (dollar sign in path), override with --db PATH
 """
 
 import sys
@@ -192,9 +192,12 @@ def scrape_babepedia(babe_name):
             elif "ethnic" in label:
                 result["ethnicity"] = link_text or value_text
             elif "tattoo" in label and value_text.lower() not in ("no", "none", ""):
-                result["tattoos"] = value_text
+                # store as JSON array: split on semicolons
+                items = [t.strip() for t in value_text.split(";") if t.strip()]
+                result["tattoos"] = items
             elif "piercing" in label and value_text.lower() not in ("no", "none", ""):
-                result["piercings"] = value_text
+                items = [t.strip() for t in value_text.split(";") if t.strip()]
+                result["piercings"] = items
             elif "boob" in label or ("breast" in label and "type" not in label):
                 result["breast_type"] = link_text or value_text
 
@@ -244,7 +247,7 @@ def scrape_babepedia(babe_name):
     if bio_p:
         result["biography"] = bio_p.text.strip()
 
-    # image - make absolute URL
+    # image - profile photo (make absolute URL)
     prof_img = soup.select_one("div#profimg img")
     if prof_img:
         src = prof_img.get("src") or prof_img.get("data-src", "")
@@ -252,6 +255,20 @@ def scrape_babepedia(babe_name):
             if src.startswith("/"):
                 src = "https://www.babepedia.com" + src
             result["image_url"] = src
+
+    # all gallery images on the page
+    all_images = []
+    for img in soup.select("img[src]"):
+        src = img.get("src", "")
+        if not src or "babepedia.com/pics/" not in src and not src.startswith("/pics/"):
+            continue
+        if src.startswith("/"):
+            src = "https://www.babepedia.com" + src
+        if src not in all_images:
+            all_images.append(src)
+    if all_images:
+        result["extra_images"] = all_images
+        print(f"\nFound {len(all_images)} gallery images: {all_images[:3]}")
 
     print("\n--- SCRAPED RESULT ---")
     for k, v in result.items():
@@ -354,8 +371,6 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         ("eye_color",   "eye_color"),
         ("breast_type", "breast_type"),
         ("cup_size",    "cup_size"),
-        ("tattoos",     "tattoos"),
-        ("piercings",   "piercings"),
     ]:
         val = scraped.get(scraped_key, "")
         if not val:
@@ -365,7 +380,25 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
             print(f"  [SKIP] {col}: already has '{existing[:60]}'")
         else:
             updates[col] = val
-            print(f"  [SET]  {col}: '{val[:80]}'")
+            print(f"  [SET]  {col}: '{str(val)[:80]}'")
+
+    # JSON array fields: tattoos, piercings, aliases - stored as ["item1","item2"]
+    for scraped_key, col in [("tattoos", "tattoos"), ("piercings", "piercings")]:
+        val = scraped.get(scraped_key)  # list or None
+        if not val:
+            continue
+        existing_raw = row[col] or ""
+        try:
+            existing_list = json.loads(existing_raw) if existing_raw else []
+            if not isinstance(existing_list, list):
+                existing_list = [existing_raw] if existing_raw else []
+        except Exception:
+            existing_list = [existing_raw] if existing_raw else []
+        if existing_list and not overwrite:
+            print(f"  [SKIP] {col}: already has {existing_list[:3]}")
+        else:
+            updates[col] = json.dumps(val)
+            print(f"  [SET]  {col}: {val}")
 
     # Integer fields: height, weight, band_size
     for scraped_key, col in [
@@ -399,19 +432,28 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         else:
             print(f"  [SKIP] birth_date: already has '{existing_bd}'")
 
-    # image_arr: add new image to existing JSON array
-    new_img = scraped.get("image_url", "")
-    if new_img:
-        try:
-            arr = json.loads(row["image_arr"] or "[]")
-        except Exception:
-            arr = []
-        if new_img not in arr:
-            arr.append(new_img)
-            updates["image_arr"] = json.dumps(arr)
-            print(f"  [ADD]  image_arr: appended '{new_img}'")
-        else:
-            print(f"  [SKIP] image_arr: image already present")
+    # image_arr: add profile image + all gallery images to existing JSON array
+    try:
+        arr = json.loads(row["image_arr"] or "[]")
+    except Exception:
+        arr = []
+    added_images = []
+    all_new_images = []
+    main_img = scraped.get("image_url", "")
+    if main_img:
+        all_new_images.append(main_img)
+    all_new_images.extend(scraped.get("extra_images", []))
+    for img in all_new_images:
+        if img and img not in arr:
+            arr.append(img)
+            added_images.append(img)
+    if added_images:
+        updates["image_arr"] = json.dumps(arr)
+        print(f"  [ADD]  image_arr: +{len(added_images)} images")
+        for img in added_images:
+            print(f"           {img}")
+    else:
+        print(f"  [SKIP] image_arr: all images already present")
 
     # aliases: merge new aliases into existing JSON array
     new_aliases_str = scraped.get("aliases", "")
@@ -488,7 +530,7 @@ if __name__ == "__main__":
     parser.add_argument("--update-all", action="store_true", help="Update all actors in DB that have babepedia URL")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing non-empty fields")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be updated without writing")
-    parser.add_argument("--db", default="G:/$XBVR/xbvr/main.db", help="Path to main.db")
+    parser.add_argument("--db", default="G:/$XBVR/xbvr/main.db".replace("$", "$"), help="Path to main.db")
     args = parser.parse_args()
 
     if args.update_all:
