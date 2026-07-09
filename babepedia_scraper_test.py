@@ -20,6 +20,7 @@ DB path defaults to G:/USD_XBVR/xbvr/main.db (dollar sign in path), override wit
 import sys
 import re
 import requests
+from urllib.parse import quote
 from bs4 import BeautifulSoup
 
 HEADERS = {
@@ -247,23 +248,28 @@ def scrape_babepedia(babe_name):
     if bio_p:
         result["biography"] = bio_p.text.strip()
 
+    def make_abs_encoded(href):
+        """Make absolute URL and percent-encode spaces (keep other %XX intact)."""
+        if not href:
+            return href
+        if href.startswith("/"):
+            href = "https://www.babepedia.com" + href
+        # encode only spaces that are literal (not already encoded)
+        return href.replace(" ", "%20")
+
     # profile photo: use full-size href from profbox2 first link, fallback to img src
     IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
     prof_link = soup.select_one("div#profbox2 a.img")
     if prof_link:
         href = prof_link.get("href", "")
         if href and any(href.lower().endswith(ext) for ext in IMAGE_EXTS) and "_thumb" not in href:
-            if href.startswith("/"):
-                href = "https://www.babepedia.com" + href
-            result["image_url"] = href
+            result["image_url"] = make_abs_encoded(href)
     if "image_url" not in result:
         prof_img = soup.select_one("div#profimg img")
         if prof_img:
             src = prof_img.get("src") or prof_img.get("data-src", "")
             if src:
-                if src.startswith("/"):
-                    src = "https://www.babepedia.com" + src
-                result["image_url"] = src
+                result["image_url"] = make_abs_encoded(src)
 
     # gallery images: full-size hrefs from user-uploads gallery only
     # profbox2 is excluded (contains _thumb pics and uploadphotos page links)
@@ -278,8 +284,7 @@ def scrape_babepedia(babe_name):
             continue
         if not any(href.lower().endswith(ext) for ext in IMAGE_EXTS):
             continue
-        if href.startswith("/"):
-            href = "https://www.babepedia.com" + href
+        href = make_abs_encoded(href)
         if href not in all_images:
             all_images.append(href)
     if all_images:
@@ -453,12 +458,14 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         arr = json.loads(row["image_arr"] or "[]")
     except Exception:
         arr = []
-    # clean up bad URLs: thumbnails and non-image page links from babepedia
+    # clean up bad URLs and encode spaces - compare against original to detect changes
+    original_arr = list(arr)
     BAD_PATTERNS = ("_thumb", "/uploadphotos/", "/user-uploads-thumbs/")
-    cleaned = [u for u in arr if not any(p in u for p in BAD_PATTERNS)]
-    if len(cleaned) != len(arr):
-        print(f"  [CLEAN] Removed {len(arr) - len(cleaned)} bad URLs from image_arr")
-        arr = cleaned
+    cleaned = [u.replace(" ", "%20") for u in arr if not any(p in u for p in BAD_PATTERNS)]
+    removed = len(arr) - len([u for u in arr if not any(p in u for p in BAD_PATTERNS)])
+    if removed:
+        print(f"  [CLEAN] Removed {removed} bad URLs from image_arr")
+    arr = cleaned
     added_images = []
     all_new_images = []
     main_img = scraped.get("image_url", "")
@@ -469,7 +476,7 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         if img and img not in arr:
             arr.append(img)
             added_images.append(img)
-    if added_images or (len(cleaned) != len(json.loads(row["image_arr"] or "[]"))):
+    if added_images or arr != original_arr:
         updates["image_arr"] = json.dumps(arr)
         if added_images:
             print(f"  [ADD]  image_arr: +{len(added_images)} images")

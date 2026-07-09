@@ -26,7 +26,7 @@
                 <b-carousel v-model="carouselSlide" @change="scrollToActiveIndicator" :autoplay="false" :indicator-inside="false">
                   <b-carousel-item v-for="(carousel, i) in images" :key="i">
                     <div class="image is-1by1 is-full"
-                         v-bind:style="{backgroundImage: `url(${getImageURL(carousel, '700,fit')})`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}"></div>
+                         v-bind:style="{backgroundImage: `url('${getImageURL(carousel, '700,fit')}')`, backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'}"></div>
                   </b-carousel-item>
                   <template slot="indicators" slot-scope="props">
                       <span class="al image" style="width:max-content;">
@@ -350,7 +350,7 @@ export default {
     getImageURL (u, size) {
       if (!u) return '/ui/images/blank_female_profile.png'
       if (u.startsWith('http') || u.startsWith('https')) {
-        return '/img/' + size + '/' + u.replace('://', ':/')
+        return '/img/' + size + '/' + encodeURI(u).replace('://', ':/')
       } else {
         return encodeURI(u)
       }
