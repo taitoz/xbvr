@@ -57,20 +57,25 @@ def lookup_country(name):
 
 def parse_measurements(text):
     """
-    Parse measurements like '34C-24-34' (inches) or with spaces.
-    Returns dict with band_size_cm, cup_size, waist_cm, hip_cm.
+    Parse measurements like '34C-24-34' or '32-22-31' (inches).
+    Returns dict with band_size, cup_size, waist_size, hip_size.
     """
+    # with cup letter: 34C-24-34
     m = re.search(r'(\d{2,3})\s*([A-Za-z]{1,2})\s*[-–]\s*(\d{2,3})\s*[-–]\s*(\d{2,3})', text)
     if m:
-        band_in = int(m.group(1))
-        cup = m.group(2).upper()
-        waist_in = int(m.group(3))
-        hip_in = int(m.group(4))
         return {
-            "band_size": round(band_in * 2.54),
-            "cup_size": cup,
-            "waist_size": round(waist_in * 2.54),
-            "hip_size": round(hip_in * 2.54),
+            "band_size": round(int(m.group(1)) * 2.54),
+            "cup_size": m.group(2).upper(),
+            "waist_size": round(int(m.group(3)) * 2.54),
+            "hip_size": round(int(m.group(4)) * 2.54),
+        }
+    # numeric only: 32-22-31
+    m = re.search(r'(\d{2,3})\s*[-–]\s*(\d{2,3})\s*[-–]\s*(\d{2,3})', text)
+    if m:
+        return {
+            "band_size": round(int(m.group(1)) * 2.54),
+            "waist_size": round(int(m.group(2)) * 2.54),
+            "hip_size": round(int(m.group(3)) * 2.54),
         }
     return None
 
@@ -102,13 +107,24 @@ def scrape_babepedia(babe_name):
     if img:
         result["image_url"] = img.get("src") or img.get("data-src", "")
 
-    # --- aliases ---
-    aka_div = soup.select_one("div#aka")
-    if aka_div:
-        aka_links = aka_div.select("a")
-        aliases = [a.text.strip() for a in aka_links if a.text.strip()]
-        if aliases:
-            result["aliases"] = ", ".join(aliases)
+    # --- aliases: h2#aka contains "Also known as: Name1 - Name2 - ..." as plain text ---
+    aliases = []
+    aka_h2 = soup.select_one("h2#aka")
+    if aka_h2:
+        # remove child elements (small label, img), keep only text nodes
+        text = aka_h2.get_text(" ", strip=True)
+        text = re.sub(r'also known as[:\s]*', '', text, flags=re.I).strip()
+        parts = [p.strip() for p in re.split(r'\s*-\s*', text) if p.strip()]
+        aliases = parts
+    if not aliases:
+        # fallback: links inside div#aka / div#aka-block
+        for sel in ["div#aka a", "div#aka-block a", "div#alsoknown a", "p#aka a"]:
+            links = soup.select(sel)
+            if links:
+                aliases = [a.text.strip() for a in links if a.text.strip()]
+                break
+    if aliases:
+        result["aliases"] = aliases
 
     # --- biography ---
     bio_div = soup.select_one("div#about p") or soup.select_one("div.about p")
@@ -136,10 +152,10 @@ def scrape_babepedia(babe_name):
         print("NOT FOUND")
 
     # aliases
-    aka_block = soup.select_one("div#aka-block") or soup.select_one("p#aka")
     print("\n--- RAW aka HTML ---")
-    if aka_block:
-        safe_print(aka_block, 500)
+    aka_el = soup.select_one("h2#aka")
+    if aka_el:
+        safe_print(aka_el, 500)
 
     # parse personal-info-block rows
     if personal_block:
@@ -208,6 +224,17 @@ def scrape_babepedia(babe_name):
                 result["piercings"] = items
             elif "boob" in label or ("breast" in label and "type" not in label):
                 result["breast_type"] = link_text or value_text
+            elif "measurement" in label:
+                parsed = parse_measurements(value_text)
+                if parsed:
+                    for k, v in parsed.items():
+                        if k not in result:
+                            result[k] = v
+            elif "also known" in label or "known as" in label:
+                # e.g. "Candy Licious - Candee L - Sofia"
+                parts = [p.strip() for p in re.split(r'\s*[-,]\s*', value_text) if p.strip()]
+                if parts:
+                    result["aliases"] = parts
 
         # Try links inside personal block for fields not in info-items
         all_links = personal_block.select("a")
@@ -256,13 +283,12 @@ def scrape_babepedia(babe_name):
         result["biography"] = bio_p.text.strip()
 
     def make_abs_encoded(href):
-        """Make absolute URL and percent-encode spaces (keep other %XX intact)."""
+        """Make absolute URL (spaces kept as-is, Vue encodeURI handles encoding)."""
         if not href:
             return href
         if href.startswith("/"):
             href = "https://www.babepedia.com" + href
-        # encode only spaces that are literal (not already encoded)
-        return href.replace(" ", "%20")
+        return href
 
     # profile photo: use full-size href from profbox2 first link, fallback to img src
     IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
@@ -411,7 +437,7 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
             print(f"  [SET]  {col}: '{str(val)[:80]}'")
 
     # JSON array fields: tattoos, piercings, aliases - stored as ["item1","item2"]
-    for scraped_key, col in [("tattoos", "tattoos"), ("piercings", "piercings")]:
+    for scraped_key, col in [("tattoos", "tattoos"), ("piercings", "piercings"), ("aliases", "aliases")]:
         val = scraped.get(scraped_key)  # list or None
         if not val:
             continue
@@ -433,6 +459,8 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         ("height",     "height"),
         ("weight",     "weight"),
         ("band_size",  "band_size"),
+        ("waist_size", "waist_size"),
+        ("hip_size",   "hip_size"),
         ("start_year", "start_year"),
         ("end_year",   "end_year"),
     ]:
@@ -452,11 +480,24 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         existing_bd = row["birth_date"] or ""
         is_zero = not existing_bd or existing_bd.startswith("0001")
         if is_zero or overwrite:
-            # extract year only, store as YYYY-01-01
-            m = re.search(r'(\d{4})', birth_raw)
-            if m:
-                year = m.group(1)
-                bd_val = f"{year}-01-01 00:00:00+00:00"
+            # parse full date: "4th of March 1995" or "January 1st 1997"
+            bd_val = None
+            # strip ordinal suffixes: 1st->1, 2nd->2, etc.
+            clean = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', birth_raw, flags=re.I)
+            for fmt in ("%d of %B %Y", "%B %d %Y", "%d %B %Y"):
+                try:
+                    from datetime import datetime
+                    dt = datetime.strptime(clean.strip(), fmt)
+                    bd_val = dt.strftime("%Y-%m-%d") + " 00:00:00+00:00"
+                    break
+                except ValueError:
+                    pass
+            if not bd_val:
+                # fallback: year only
+                m = re.search(r'(\d{4})', birth_raw)
+                if m:
+                    bd_val = f"{m.group(1)}-01-01 00:00:00+00:00"
+            if bd_val:
                 updates["birth_date"] = bd_val
                 print(f"  [SET]  birth_date: {bd_val}")
         else:
@@ -467,10 +508,10 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         arr = json.loads(row["image_arr"] or "[]")
     except Exception:
         arr = []
-    # clean up bad URLs and encode spaces - compare against original to detect changes
+    # clean up bad URLs; also decode any legacy %20/%2520 back to spaces
     original_arr = list(arr)
     BAD_PATTERNS = ("_thumb", "/uploadphotos/", "/user-uploads-thumbs/")
-    cleaned = [u.replace(" ", "%20") for u in arr if not any(p in u for p in BAD_PATTERNS)]
+    cleaned = [u.replace("%2520", " ").replace("%20", " ") for u in arr if not any(p in u for p in BAD_PATTERNS)]
     removed = len(arr) - len([u for u in arr if not any(p in u for p in BAD_PATTERNS)])
     if removed:
         print(f"  [CLEAN] Removed {removed} bad URLs from image_arr")

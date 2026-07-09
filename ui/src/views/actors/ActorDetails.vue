@@ -150,9 +150,6 @@
                     <b-field v-if="actor.aliases != '' && actor.aliases != '[]'">
                       <strong class="attribute-heading">{{ $t('Aliases') }}:</strong> <small class="attribute-long-data">{{ joinArray(actor.aliases) }}</small>
                     </b-field>
-                    <b-field v-if="$store.state.optionsAdvanced.advanced.showInternalSceneId">
-                      <strong class="attribute-heading">{{ $t('Internal ID') }}:</strong> <small class="attribute-data">{{ actor.id }}</small>
-                    </b-field>
                     <b-field v-if="actor.tattoos != '' && actor.tattoos != '[]'">
                       <strong class="attribute-heading">{{ $t('Tattoos') }}:</strong> <small class="attribute-long-data">{{ joinArray(actor.tattoos) }}</small>
                     </b-field>
@@ -260,6 +257,7 @@
         </div>
       </section>
     </div>
+    <div class="actor-id" v-if="$store.state.optionsAdvanced.advanced.showInternalSceneId">{{ $t('Internal ID') }}: {{ actor.id }}</div>
     <button class="modal-close is-large" aria-label="close" @click="close()"></button>
     <a class="prev" @click="prevActor"
        title="Keyboard shortcut: O">&#10094;</a>
@@ -353,9 +351,9 @@ export default {
     getImageURL (u, size) {
       if (!u) return '/ui/images/blank_female_profile.png'
       if (u.startsWith('http') || u.startsWith('https')) {
-        return '/img/' + size + '/' + encodeURI(u).replace('://', ':/')
+        return '/img/' + size + '/' + encodeURI(decodeURI(u)).replace('://', ':/')
       } else {
-        return encodeURI(u)
+        return encodeURI(decodeURI(u))
       }
     },
     getIndicatorURL (idx) {      
@@ -858,6 +856,13 @@ div.scroll {
 .flexcentre {
   display: flex;
   justify-content: center;
+}
+.actor-id {
+  position: absolute;
+  right: 10px;
+  bottom: 5px;
+  font-size: 11px;
+  color: #b0b0b0;
 }
 
 </style>
