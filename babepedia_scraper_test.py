@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """
 Test script for Babepedia actor scraper.
-Fetches a babe page and prints all fields that would be scraped,
-matching the logic in model_external_reference.go.
+Fetches a babe page, prints scraped fields, and optionally updates main.db.
 
 Usage:
-    python babepedia_scraper_test.py [babe_name]
-    python babepedia_scraper_test.py Alexis_Crystal
+    # Dry-run (print only, no DB changes):
     python babepedia_scraper_test.py Desiree_Nevada
+    python babepedia_scraper_test.py Alexis_Crystal
+
+    # Update DB for a specific actor by babepedia name:
+    python babepedia_scraper_test.py Desiree_Nevada --update
+
+    # Update DB for ALL actors that have a babepedia scrape URL in their urls field:
+    python babepedia_scraper_test.py --update-all
+
+DB path defaults to G:/\$XBVR/xbvr/main.db, override with --db PATH
 """
 
 import sys
@@ -140,30 +147,70 @@ def scrape_babepedia(babe_name):
         for row in rows:
             print(f"  ROW: {row.text.strip()[:100]}")
 
-        # Try links inside personal block - babepedia uses <a> for each value
+        # Parse structured div.info-item blocks (new babepedia layout)
+        info_items = personal_block.select("div.info-item")
+        print(f"\nFound {len(info_items)} div.info-item blocks")
+        for item in info_items:
+            label_el = item.select_one("span.label")
+            value_el = item.select_one("span.value")
+            if not label_el or not value_el:
+                continue
+            label = label_el.text.strip().rstrip(":").lower()
+            value_text = value_el.text.strip()
+            # also get first link text and href
+            first_link = value_el.select_one("a")
+            link_href = first_link.get("href", "") if first_link else ""
+            link_text = first_link.text.strip() if first_link else ""
+            print(f"  [{label}] => [{value_text[:80]}]")
+
+            if "hair" in label:
+                result["hair_color"] = link_text or value_text
+            elif "eye" in label:
+                result["eye_color"] = link_text or value_text
+            elif "height" in label:
+                m = re.search(r'(\d{2,3})\s*cm', value_text)
+                if m:
+                    result["height"] = int(m.group(1))
+                else:
+                    m = re.search(r"(\d+)'(\d+)", value_text)
+                    if m:
+                        result["height"] = round(int(m.group(1)) * 30.48 + int(m.group(2)) * 2.54)
+            elif "weight" in label:
+                m = re.search(r'(\d{2,3})\s*kg', value_text)
+                if m:
+                    result["weight"] = int(m.group(1))
+                else:
+                    m = re.search(r'(\d{2,3})\s*lb', value_text)
+                    if m:
+                        result["weight"] = round(int(m.group(1)) * 0.453592)
+            elif "bra" in label or "cup" in label:
+                # e.g. "36D" -> band_size=36 inches, cup_size=D
+                m = re.match(r'(\d{2,3})([A-Za-z]{1,2})', value_text.strip())
+                if m:
+                    result["band_size"] = inch_to_cm(m.group(1))
+                    result["cup_size"] = m.group(2).upper()
+            elif "ethnic" in label:
+                result["ethnicity"] = link_text or value_text
+            elif "tattoo" in label and value_text.lower() not in ("no", "none", ""):
+                result["tattoos"] = value_text
+            elif "piercing" in label and value_text.lower() not in ("no", "none", ""):
+                result["piercings"] = value_text
+            elif "boob" in label or ("breast" in label and "type" not in label):
+                result["breast_type"] = link_text or value_text
+
+        # Try links inside personal block for fields not in info-items
         all_links = personal_block.select("a")
         print(f"\nLinks in personal-info-block:")
         for a in all_links:
             href = a.get("href", "")
             text = a.text.strip()
             print(f"  [{text}] href={href}")
-            # Determine field by href pattern
-            if "birthday" in href or "born-in-the-year" in href:
-                pass  # handled separately
-            elif "topbabespercountry" in href:
+            if "topbabespercountry" in href:
                 result["nationality"] = lookup_country(text)
-            elif "topbabesperstate" in href and "nationality" not in result:
-                pass  # state/city, skip
-            elif any(x in href for x in ["caucasian", "asian", "latin", "ebony", "black"]):
-                result["ethnicity"] = text
-            elif any(x in href for x in ["hair"]):
-                result["hair_color"] = text
-            elif any(x in href for x in ["eyes", "brown", "blue", "green", "hazel"]):
-                result["eye_color"] = text
-            elif any(x in href for x in ["slim", "athletic", "curvy", "bbw", "petite"]):
-                pass  # body type
-            elif any(x in href for x in ["fake", "real", "natural", "enhanced", "breast"]):
-                result["breast_type"] = text
+            elif any(x in href for x in ["fake", "realbreast", "naturalbreast", "enhancedbreast",
+                                          "top100fakebreasts", "top100realbreasts"]):
+                if "breast_type" not in result:
+                    result["breast_type"] = text
 
         # born date: two links - day/month + year
         birthday_links = personal_block.select("a[href*='birthday']")
@@ -197,11 +244,13 @@ def scrape_babepedia(babe_name):
     if bio_p:
         result["biography"] = bio_p.text.strip()
 
-    # image
+    # image - make absolute URL
     prof_img = soup.select_one("div#profimg img")
     if prof_img:
         src = prof_img.get("src") or prof_img.get("data-src", "")
         if src:
+            if src.startswith("/"):
+                src = "https://www.babepedia.com" + src
             result["image_url"] = src
 
     print("\n--- SCRAPED RESULT ---")
@@ -262,8 +311,220 @@ scrapeRules.GenericActorScrapingConfig["babepedia scrape"] = siteDetails
 ''')
 
 
+# ── DB field mapping ──────────────────────────────────────────────────────────
+# Maps scraped dict keys to actors table columns.
+# Only non-empty values will be written. Existing values are NOT overwritten
+# unless --overwrite flag is set.
+DB_FIELD_MAP = {
+    "image_url":   "image_url",
+    "biography":   "biography",
+    "nationality": "nationality",
+    "ethnicity":   "ethnicity",
+    "hair_color":  "hair_color",
+    "eye_color":   "eye_color",
+    "breast_type": "breast_type",
+    "aliases_add": "aliases",   # special: merge into JSON array
+}
+
+
+def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry_run=False):
+    """Apply scraped fields to the actors table row."""
+    import sqlite3, json, datetime
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM actors WHERE id = ?", (actor_id,))
+    row = cur.fetchone()
+    if not row:
+        print(f"  [DB] Actor id={actor_id} not found")
+        conn.close()
+        return
+
+    updates = {}
+
+    # Simple string fields
+    for scraped_key, col in [
+        ("image_url",   "image_url"),
+        ("biography",   "biography"),
+        ("nationality", "nationality"),
+        ("ethnicity",   "ethnicity"),
+        ("hair_color",  "hair_color"),
+        ("eye_color",   "eye_color"),
+        ("breast_type", "breast_type"),
+        ("cup_size",    "cup_size"),
+        ("tattoos",     "tattoos"),
+        ("piercings",   "piercings"),
+    ]:
+        val = scraped.get(scraped_key, "")
+        if not val:
+            continue
+        existing = row[col] or ""
+        if existing and not overwrite:
+            print(f"  [SKIP] {col}: already has '{existing[:60]}'")
+        else:
+            updates[col] = val
+            print(f"  [SET]  {col}: '{val[:80]}'")
+
+    # Integer fields: height, weight, band_size
+    for scraped_key, col in [
+        ("height",    "height"),
+        ("weight",    "weight"),
+        ("band_size", "band_size"),
+    ]:
+        val = scraped.get(scraped_key)
+        if not val:
+            continue
+        existing = row[col]
+        if existing and not overwrite:
+            print(f"  [SKIP] {col}: already has '{existing}'")
+        else:
+            updates[col] = val
+            print(f"  [SET]  {col}: {val}")
+
+    # birth_date: only update if current is zero/empty
+    birth_raw = scraped.get("birth_date_raw", "")
+    if birth_raw:
+        existing_bd = row["birth_date"] or ""
+        is_zero = not existing_bd or existing_bd.startswith("0001")
+        if is_zero or overwrite:
+            # extract year only, store as YYYY-01-01
+            m = re.search(r'(\d{4})', birth_raw)
+            if m:
+                year = m.group(1)
+                bd_val = f"{year}-01-01 00:00:00+00:00"
+                updates["birth_date"] = bd_val
+                print(f"  [SET]  birth_date: {bd_val}")
+        else:
+            print(f"  [SKIP] birth_date: already has '{existing_bd}'")
+
+    # image_arr: add new image to existing JSON array
+    new_img = scraped.get("image_url", "")
+    if new_img:
+        try:
+            arr = json.loads(row["image_arr"] or "[]")
+        except Exception:
+            arr = []
+        if new_img not in arr:
+            arr.append(new_img)
+            updates["image_arr"] = json.dumps(arr)
+            print(f"  [ADD]  image_arr: appended '{new_img}'")
+        else:
+            print(f"  [SKIP] image_arr: image already present")
+
+    # aliases: merge new aliases into existing JSON array
+    new_aliases_str = scraped.get("aliases", "")
+    if new_aliases_str:
+        try:
+            existing_aliases = json.loads(row["aliases"] or "[]")
+        except Exception:
+            existing_aliases = []
+        added = []
+        for alias in [a.strip() for a in new_aliases_str.split(",") if a.strip()]:
+            if alias not in existing_aliases and alias != actor_name:
+                existing_aliases.append(alias)
+                added.append(alias)
+        if added:
+            updates["aliases"] = json.dumps(existing_aliases)
+            print(f"  [ADD]  aliases: {added}")
+        else:
+            print(f"  [SKIP] aliases: no new aliases")
+
+    if not updates:
+        print("  [DB] No fields to update")
+        conn.close()
+        return
+
+    updates["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    if dry_run:
+        print(f"  [DRY-RUN] Would update {list(updates.keys())}")
+        conn.close()
+        return
+
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [actor_id]
+    cur.execute(f"UPDATE actors SET {set_clause} WHERE id = ?", values)
+    conn.commit()
+    print(f"  [DB] Updated actor id={actor_id} ({actor_name})")
+    conn.close()
+
+
+def get_babepedia_actors_from_db(db_path):
+    """Return list of (id, name, babepedia_url) for actors with babepedia scrape URL."""
+    import sqlite3, json
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, urls FROM actors WHERE urls LIKE '%babepedia%'")
+    rows = cur.fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        try:
+            urls = json.loads(row["urls"] or "[]")
+        except Exception:
+            continue
+        for entry in urls:
+            if isinstance(entry, dict) and "babepedia" in entry.get("type", ""):
+                result.append((row["id"], row["name"], entry["url"]))
+                break
+    return result
+
+
+def babe_name_from_url(url):
+    """Extract babe name from babepedia URL."""
+    m = re.search(r'/babe/(.+)$', url)
+    return m.group(1) if m else None
+
+
 if __name__ == "__main__":
-    babe = sys.argv[1] if len(sys.argv) > 1 else "Alexis_Crystal"
-    scrape_babepedia(babe)
-    if len(sys.argv) > 2:
-        scrape_babepedia(sys.argv[2])
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Babepedia scraper test / DB updater")
+    parser.add_argument("babe", nargs="?", help="Babepedia babe name (e.g. Desiree_Nevada)")
+    parser.add_argument("--update", action="store_true", help="Update matching actor in DB")
+    parser.add_argument("--update-all", action="store_true", help="Update all actors in DB that have babepedia URL")
+    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing non-empty fields")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be updated without writing")
+    parser.add_argument("--db", default="G:/$XBVR/xbvr/main.db", help="Path to main.db")
+    args = parser.parse_args()
+
+    if args.update_all:
+        import sqlite3
+        print(f"Scanning DB: {args.db}")
+        actors = get_babepedia_actors_from_db(args.db)
+        print(f"Found {len(actors)} actors with babepedia scrape URL")
+        for actor_id, actor_name, bp_url in actors:
+            babe = babe_name_from_url(bp_url)
+            if not babe:
+                print(f"  [SKIP] Cannot parse babe name from {bp_url}")
+                continue
+            print(f"\n{'='*60}\n{actor_name} (id={actor_id}) -> {bp_url}")
+            scraped = scrape_babepedia(babe)
+            if scraped:
+                update_actor_db(args.db, actor_id, actor_name, scraped,
+                                overwrite=args.overwrite, dry_run=args.dry_run)
+
+    elif args.babe:
+        scraped = scrape_babepedia(args.babe)
+        if scraped and args.update:
+            import sqlite3
+            # find actor by name derived from babe slug
+            actor_name_guess = args.babe.replace("_", " ")
+            conn = sqlite3.connect(args.db)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT id, name FROM actors WHERE name = ? COLLATE NOCASE", (actor_name_guess,))
+            row = cur.fetchone()
+            conn.close()
+            if row:
+                print(f"\nFound actor: id={row['id']} name={row['name']}")
+                update_actor_db(args.db, row["id"], row["name"], scraped,
+                                overwrite=args.overwrite, dry_run=args.dry_run)
+            else:
+                print(f"\n[ERROR] Actor '{actor_name_guess}' not found in DB.")
+                print("Tip: check spelling or add babepedia URL to actor manually.")
+    else:
+        parser.print_help()
