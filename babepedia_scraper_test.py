@@ -592,6 +592,25 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
     conn.close()
 
 
+def get_actors_with_available_scenes(db_path):
+    """Return list of (id, name) for actors that have at least one is_available=1 scene."""
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT DISTINCT a.id, a.name
+        FROM actors a
+        JOIN scene_cast sc ON sc.actor_id = a.id
+        JOIN scenes s ON s.id = sc.scene_id
+        WHERE s.is_available = 1
+        ORDER BY a.name
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    return [(r["id"], r["name"]) for r in rows]
+
+
 def get_babepedia_actors_from_db(db_path):
     """Return list of (id, name, babepedia_url) for actors with babepedia scrape URL."""
     import sqlite3, json
@@ -627,12 +646,37 @@ if __name__ == "__main__":
     parser.add_argument("babe", nargs="?", help="Babepedia babe name (e.g. Desiree_Nevada)")
     parser.add_argument("--update", action="store_true", help="Update matching actor in DB")
     parser.add_argument("--update-all", action="store_true", help="Update all actors in DB that have babepedia URL")
+    parser.add_argument("--all-available", action="store_true", help="Scrape all actors with is_available=1 scenes by name")
+    parser.add_argument("--skip", type=int, default=0, help="Skip first N actors (for resuming --all-available)")
+    parser.add_argument("--delay", type=float, default=2.0, help="Delay in seconds between requests (default: 2)")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing non-empty fields")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be updated without writing")
     parser.add_argument("--db", default="G:/$XBVR/xbvr/main.db".replace("$", "$"), help="Path to main.db")
     args = parser.parse_args()
 
-    if args.update_all:
+    if args.all_available:
+        import sqlite3, time
+        actors = get_actors_with_available_scenes(args.db)
+        total = len(actors)
+        print(f"Found {total} actors with available scenes")
+        if args.skip:
+            print(f"Skipping first {args.skip} actors")
+            actors = actors[args.skip:]
+        for idx, (actor_id, actor_name) in enumerate(actors, start=args.skip + 1):
+            babe_slug = actor_name.replace(" ", "_")
+            print(f"\n[{idx}/{total}] {actor_name} -> {babe_slug}")
+            try:
+                scraped = scrape_babepedia(babe_slug)
+            except Exception as e:
+                print(f"  [ERROR] {e}")
+                scraped = None
+            if scraped and args.update:
+                update_actor_db(args.db, actor_id, actor_name, scraped,
+                                overwrite=args.overwrite, dry_run=args.dry_run)
+            if args.delay > 0:
+                time.sleep(args.delay)
+
+    elif args.update_all:
         import sqlite3
         print(f"Scanning DB: {args.db}")
         actors = get_babepedia_actors_from_db(args.db)
