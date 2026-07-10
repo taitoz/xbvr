@@ -90,7 +90,7 @@
                   </div>
                   <div class="column pt-0">
                     <div class="is-pulled-right">
-                      <a class="button is-small is-outlined" :href="deoVrUrl" target="_blank" rel="noopener">DeoVR</a>&nbsp;
+                      <a class="button is-small is-outlined" :href="deoVrUrl" target="_blank" rel="noopener">Open in DeoVR</a>&nbsp;
                       <actor-favourite-button :actor="actor"/>&nbsp;
                       <actor-watchlist-button :actor="actor"/>&nbsp;
                       <actor-edit-button :actor="actor"/>&nbsp;
