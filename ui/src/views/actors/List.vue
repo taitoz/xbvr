@@ -135,7 +135,7 @@ export default {
             this.limit=12
             break
           case "4":
-            this.limit=6
+            this.limit=9
             break
             }            
         }      
