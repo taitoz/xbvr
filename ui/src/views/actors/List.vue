@@ -13,6 +13,16 @@
       <div class="column">
         <strong>{{total}} results</strong>
       </div>
+      <div class="column is-narrow">
+        <div class="columns is-gapless">
+          <b-radio-button v-model="availFilter" native-value="any" size="is-small">
+            {{ $t('Any') }}
+          </b-radio-button>
+          <b-radio-button v-model="availFilter" native-value="available" size="is-small">
+            {{ $t('Available') }}
+          </b-radio-button>
+        </div>
+      </div>
       <div class="column">
         <b-tooltip :label="$t('Press o/left arrow to page back, p/right arrow to page forward')" :delay="500" position="is-top">
           <b-pagination
@@ -192,6 +202,15 @@ export default {
       }
       
       return this.$store.state.actorList.show_actor_id
+    },
+    availFilter: {
+      get () {
+        return this.$store.state.actorList.filters.min_avail > 0 ? 'available' : 'any'
+      },
+      set (value) {
+        this.$store.state.actorList.filters.min_avail = value === 'available' ? 1 : 0
+        this.reloadList()
+      }
     },
     hideLetters: {
       get () {        
