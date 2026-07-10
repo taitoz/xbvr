@@ -90,6 +90,7 @@
                   </div>
                   <div class="column pt-0">
                     <div class="is-pulled-right">
+                      <a class="button is-small is-outlined" :href="deoVrUrl" target="_blank" rel="noopener">DeoVR</a>&nbsp;
                       <actor-favourite-button :actor="actor"/>&nbsp;
                       <actor-watchlist-button :actor="actor"/>&nbsp;
                       <actor-edit-button :actor="actor"/>&nbsp;
@@ -334,6 +335,9 @@ export default {
     scenesScrollHeight () {
       const rows = Math.ceil(this.actor.scenes.length / 4)
       return `${rows * 11}em`
+    },
+    deoVrUrl () {
+      return `${window.location.origin}/deovr/actor/${this.actor.id}`
     },
   },
   mounted () {    
