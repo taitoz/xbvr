@@ -12,7 +12,12 @@
     </div>
 
     <div style="padding-top:4px;">
-      <div class="scene_title">{{actor.name}}</div>
+      <div class="scene_title">
+        {{actor.name}}
+        <vue-load-image style="display:inline-block;vertical-align:middle;" v-if="actor.nationality">
+          <img slot="image" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" style="height:10px;border: 1px solid black;margin-left:0.3em;" />
+        </vue-load-image>
+      </div>
       <a v-if="colleague!=undefined" class="button is-info is-outlined is-small"
         @click="showColleague(actor.name,colleague)"
         :title="'Show Scenes with ' + actor.name">
@@ -40,16 +45,10 @@
       </b-tag>
       </b-tooltip>
 
-      <span class="is-pulled-right" style="font-size:11px;text-align:right;">                
-          <span v-if="actor.birth_date != '0001-01-01T00:00:00Z'">{{format(parseISO(actor.birth_date), "yyyy-MM-dd")}}</span>
-          <vue-load-image style="display:inline-block">
-            <img slot="image" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" style="height:10px;border: 1px solid black;margin-left:0.5em" />
-          </vue-load-image>
-          <div>
+      <span class="is-pulled-right" style="font-size:11px;text-align:right;">
           <span v-if="actor.scenes.length == 1">{{actor.scenes.length}} scene</span>
           <span v-if="actor.scenes.length > 1">{{actor.scenes.length}} scenes</span>
           <span v-if="actor.avail_count > 0">, {{actor.avail_count}} available</span>
-          </div>
       </span>
     </div>
   </div>

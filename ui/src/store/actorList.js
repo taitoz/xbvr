@@ -43,6 +43,8 @@ const state = {
   isLoading: false,
   offset: 0,
   total: 0,
+  countAny: 0,
+  countAvailable: 0,
   limit: 15,
   show_actor_id: '',
   filterOpts: {
@@ -171,7 +173,9 @@ const actions = {
 
     commit('setActors', state.actors=data.actors)
     state.offset = data.offset + state.limit
-    state.total = data.results    
+    state.total = data.results
+    state.countAny = data.count_any
+    state.countAvailable = data.count_available
   }
 }
 

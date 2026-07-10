@@ -16,10 +16,10 @@
       <div class="column is-narrow">
         <div class="columns is-gapless">
           <b-radio-button v-model="availFilter" native-value="any" size="is-small">
-            {{ $t('Any') }}
+            {{ $t('Any') }} ({{countAny}})
           </b-radio-button>
           <b-radio-button v-model="availFilter" native-value="available" size="is-small">
-            {{ $t('Available') }}
+            {{ $t('Available') }} ({{countAvailable}})
           </b-radio-button>
         </div>
       </div>
@@ -202,6 +202,12 @@ export default {
       }
       
       return this.$store.state.actorList.show_actor_id
+    },
+    countAny () {
+      return this.$store.state.actorList.countAny
+    },
+    countAvailable () {
+      return this.$store.state.actorList.countAvailable
     },
     availFilter: {
       get () {

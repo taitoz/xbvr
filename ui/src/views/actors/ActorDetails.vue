@@ -864,7 +864,8 @@ div.scroll {
   bottom: 8px;
   font-size: 11px;
   color: #b0b0b0;
-  pointer-events: none;
+  user-select: text;
+  cursor: text;
 }
 
 </style>

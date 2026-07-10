@@ -367,17 +367,32 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 	if r.MaxWeight.OrElse(150) < 150 {
 		tx = tx.Where("actors.weight <= ?", r.MaxWeight.OrElse(150))
 	}
-	cupOrder := []string{"AA", "A", "B", "C", "D", "DD", "E", "F", "G", "N"}
+	// Cup size order A-K (index 0-9), each index includes DB aliases
+	cupGroups := [][]string{
+		{"A", "AA"},           // 0 = A
+		{"B"},                 // 1 = B
+		{"C"},                 // 2 = C
+		{"D", "DD", "DDD"},   // 3 = D
+		{"E"},                 // 4 = E
+		{"F", "FF"},          // 5 = F
+		{"G", "GG"},          // 6 = G
+		{"H", "HH"},          // 7 = H
+		{"J", "JJ"},          // 8 = J
+		{"K"},                 // 9 = K
+	}
 	minCup := r.MinCupSize.OrElse(0)
-	maxCup := r.MaxCupSize.OrElse(len(cupOrder) - 1)
-	if minCup > 0 || maxCup < len(cupOrder)-1 {
+	maxCup := r.MaxCupSize.OrElse(len(cupGroups) - 1)
+	if minCup > 0 || maxCup < len(cupGroups)-1 {
 		if minCup < 0 {
 			minCup = 0
 		}
-		if maxCup >= len(cupOrder) {
-			maxCup = len(cupOrder) - 1
+		if maxCup >= len(cupGroups) {
+			maxCup = len(cupGroups) - 1
 		}
-		selectedCups := cupOrder[minCup : maxCup+1]
+		var selectedCups []string
+		for _, grp := range cupGroups[minCup : maxCup+1] {
+			selectedCups = append(selectedCups, grp...)
+		}
 		tx = tx.Where("actors.cup_size IN (?)", selectedCups)
 	}
 	if r.MinCount.OrElse(0) > 0 {
@@ -490,6 +505,9 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 
 	tx.Group("actors.id").
 		Count(&out.Results)
+
+	commonDb.Model(&Actor{}).Group("actors.id").Count(&out.CountAny)
+	commonDb.Model(&Actor{}).Where("actors.avail_count > 0").Group("actors.id").Count(&out.CountAvailable)
 
 	tx = tx.Preload("Scenes", func(db *gorm.DB) *gorm.DB {
 		return db.Order("release_date DESC").Where("is_hidden = 0")

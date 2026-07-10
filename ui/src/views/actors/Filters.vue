@@ -122,7 +122,7 @@
         </tr>
         <tr>
           <td class="slider-title"><strong><small>{{ $t("Bra/cup size") }}:</small></strong></td>
-          <td><b-slider :min="0" :max="9" :step="1" :tooltip="true" :custom-formatter="formatCupSize" v-model="cupSizes" lazy class="slider"></b-slider></td>
+          <td><b-slider :min="0" :max="9" :step="1" :tooltip="true" :custom-formatter="val => formatCupSize(val)" v-model="cupSizes" lazy class="slider"></b-slider></td>
         </tr>
         <tr>
           <td class="slider-title"><strong><small>{{ $t("Scenes") }}:</small></strong></td>
@@ -340,7 +340,7 @@ export default {
       return txt
     },
     formatCupSize(value) {
-      const cupSizes = ['AA', 'A', 'B', 'C', 'D', 'DD', 'E', 'F', 'G', 'N']
+      const cupSizes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K']
       return cupSizes[value] || value
     },
     async fetchFilters() {
