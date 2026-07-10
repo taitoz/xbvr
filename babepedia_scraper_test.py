@@ -476,6 +476,10 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         if not val:
             continue
         existing = row[col] or ""
+        # Never overwrite a local /myfiles/ image with a remote URL
+        if col == "image_url" and existing and "/myfiles/" in existing:
+            print(f"  [SKIP] {col}: keeping local image '{existing[:60]}'")
+            continue
         if existing and not overwrite:
             print(f"  [SKIP] {col}: already has '{existing[:60]}'")
         else:
@@ -550,6 +554,9 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
             print(f"  [SKIP] birth_date: already has '{existing_bd}'")
 
     # image_arr: add profile image + all gallery images to existing JSON array
+    # Never replace /myfiles/ URLs with remote ones
+    existing_image_url = row["image_url"] or ""
+    has_local_image = "/myfiles/" in existing_image_url
     try:
         arr = json.loads(row["image_arr"] or "[]")
     except Exception:
@@ -600,6 +607,43 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
     cur.execute(f"UPDATE actors SET {set_clause} WHERE id = ?", values)
     conn.commit()
     print(f"  [DB] Updated actor id={actor_id} ({actor_name})")
+
+    # Protect updated fields from being overwritten by Go scraper (overwrite=true)
+    # by inserting action_actors records with source='edit_actor'
+    protected_cols = {
+        "birth_date":   updates.get("birth_date", ""),
+        "nationality":  updates.get("nationality", ""),
+        "ethnicity":    updates.get("ethnicity", ""),
+        "hair_color":   updates.get("hair_color", ""),
+        "eye_color":    updates.get("eye_color", ""),
+        "breast_type":  updates.get("breast_type", ""),
+        "cup_size":     updates.get("cup_size", ""),
+        "biography":    updates.get("biography", ""),
+        "height":       str(updates.get("height", "")),
+        "weight":       str(updates.get("weight", "")),
+        "band_size":    str(updates.get("band_size", "")),
+        "waist_size":   str(updates.get("waist_size", "")),
+        "hip_size":     str(updates.get("hip_size", "")),
+    }
+    protected_count = 0
+    for col, new_val in protected_cols.items():
+        if not new_val or new_val == "0":
+            continue
+        # Check if a protection record already exists
+        cur.execute(
+            "SELECT id FROM action_actors WHERE source='edit_actor' AND actor_id=? AND changed_column=?",
+            (actor_id, col)
+        )
+        existing_action = cur.fetchone()
+        if not existing_action:
+            cur.execute(
+                "INSERT INTO action_actors (created_at, actor_id, action_type, source, changed_column, new_value) VALUES (?, ?, ?, ?, ?, ?)",
+                (datetime.now(timezone.utc).isoformat(), actor_id, "update", "edit_actor", col, str(new_val))
+            )
+            protected_count += 1
+    if protected_count:
+        conn.commit()
+        print(f"  [DB] Protected {protected_count} fields in action_actors")
     conn.close()
 
 
