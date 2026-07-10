@@ -17,7 +17,7 @@
     <div class="modal-background"></div>
 
     <div class="modal-card">
-      <section class="modal-card-body">
+      <section class="modal-card-body" style="position:relative;">
         <div class="columns">
 
           <div class="column is-half">
@@ -256,9 +256,9 @@
 
           </div>
         </div>
+        <div class="actor-id" v-if="$store.state.optionsAdvanced.advanced.showInternalSceneId">{{ $t('Internal ID') }}: {{ actor.id }}</div>
       </section>
     </div>
-    <div class="actor-id" v-if="$store.state.optionsAdvanced.advanced.showInternalSceneId">{{ $t('Internal ID') }}: {{ actor.id }}</div>
     <button class="modal-close is-large" aria-label="close" @click="close()"></button>
     <a class="prev" @click="prevActor"
        title="Keyboard shortcut: O">&#10094;</a>
@@ -861,9 +861,10 @@ div.scroll {
 .actor-id {
   position: absolute;
   right: 10px;
-  bottom: 5px;
+  bottom: 8px;
   font-size: 11px;
   color: #b0b0b0;
+  pointer-events: none;
 }
 
 </style>

@@ -367,11 +367,18 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 	if r.MaxWeight.OrElse(150) < 150 {
 		tx = tx.Where("actors.weight <= ?", r.MaxWeight.OrElse(150))
 	}
-	if r.MinCupSize.OrElse(0) > 0 {
-		tx = tx.Where("actors.cup_size >= ?", r.MinCupSize.OrElse(0))
-	}
-	if r.MaxCupSize.OrElse(9) < 9 {
-		tx = tx.Where("actors.cup_size <= ?", r.MaxCupSize.OrElse(9))
+	cupOrder := []string{"AA", "A", "B", "C", "D", "DD", "E", "F", "G", "N"}
+	minCup := r.MinCupSize.OrElse(0)
+	maxCup := r.MaxCupSize.OrElse(len(cupOrder) - 1)
+	if minCup > 0 || maxCup < len(cupOrder)-1 {
+		if minCup < 0 {
+			minCup = 0
+		}
+		if maxCup >= len(cupOrder) {
+			maxCup = len(cupOrder) - 1
+		}
+		selectedCups := cupOrder[minCup : maxCup+1]
+		tx = tx.Where("actors.cup_size IN (?)", selectedCups)
 	}
 	if r.MinCount.OrElse(0) > 0 {
 		tx = tx.Where("actors.`count` >= ?", r.MinCount.OrElse(0))
