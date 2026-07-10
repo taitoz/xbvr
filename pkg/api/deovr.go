@@ -271,13 +271,6 @@ func (i DeoVRResource) WebService() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(DeoScene{}))
 
-	ws.Route(ws.GET("/actor/{actor-id}").Filter(restfulAuthFilter).To(i.getDeoActorLibrary).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes(DeoLibrary{}))
-	ws.Route(ws.POST("/actor/{actor-id}").Filter(restfulAuthFilter).To(i.getDeoActorLibrary).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes(DeoLibrary{}))
-
 	return ws
 }
 
@@ -641,24 +634,6 @@ func (i DeoVRResource) getDeoLibrary(req *restful.Request, resp *restful.Respons
 
 	var sceneLists []DeoListScenes
 
-	// Add actors section (those with available scenes)
-	var actors []models.Actor
-	db.Where("avail_count > 0").Order("name asc").Find(&actors)
-	if len(actors) > 0 {
-		actorList := make([]DeoListItem, 0, len(actors))
-		for i := range actors {
-			actorList = append(actorList, DeoListItem{
-				Title:        actors[i].Name,
-				ThumbnailURL: deoAbsoluteURL(actors[i].ImageUrl),
-				VideoURL:     fmt.Sprintf("%v/deovr/actor/%v", session.DeoRequestHost, actors[i].ID),
-			})
-		}
-		sceneLists = append(sceneLists, DeoListScenes{
-			Name: "Actors",
-			List: actorList,
-		})
-	}
-
 	var savedPlaylists []models.Playlist
 	db.Where("is_deo_enabled = ?", true).Order("ordering asc").Find(&savedPlaylists)
 
@@ -677,6 +652,24 @@ func (i DeoVRResource) getDeoLibrary(req *restful.Request, resp *restful.Respons
 		}
 	}
 
+	// Add per-actor playlists (flat categories; DeoVR does not support nested playlists)
+	var actors []models.Actor
+	db.Where("avail_count > 0").Order("name asc").Find(&actors)
+	for i := range actors {
+		var r models.RequestSceneList
+		r.IsAccessible = optional.NewBool(true)
+		r.IsAvailable = optional.NewBool(true)
+		r.Cast = []optional.String{optional.NewString(strconv.Itoa(actors[i].ID))}
+
+		summaries := models.QuerySceneSummaries(r)
+		if len(summaries) > 0 {
+			sceneLists = append(sceneLists, DeoListScenes{
+				Name: actors[i].Name,
+				List: scenesToDeoList(req, summaries),
+			})
+		}
+	}
+
 	// Add unmatched files at the end
 	var unmatched []models.File
 	db.Model(&unmatched).
@@ -690,66 +683,6 @@ func (i DeoVRResource) getDeoLibrary(req *restful.Request, resp *restful.Respons
 		Name: "Unmatched",
 		List: filesToDeoList(req, unmatched),
 	})
-
-	resp.WriteHeaderAndEntity(http.StatusOK, DeoLibrary{
-		Authorized: "1",
-		Scenes:     sceneLists,
-	})
-}
-
-func (i DeoVRResource) getDeoActorLibrary(req *restful.Request, resp *restful.Response) {
-	if !config.Config.Interfaces.DeoVR.Enabled {
-		return
-	}
-
-	setDeoPlayerHost(req)
-
-	actorID, err := strconv.Atoi(req.PathParameter("actor-id"))
-	if err != nil {
-		resp.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	db, _ := models.GetDB()
-	defer db.Close()
-
-	var actor models.Actor
-	if err := db.First(&actor, actorID).Error; err != nil {
-		resp.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	dnt := ""
-	if config.Config.Interfaces.DeoVR.RemoteEnabled || !config.Config.Interfaces.DeoVR.TrackWatchTime {
-		dnt = "?dnt=true"
-	}
-
-	backURL := fmt.Sprintf("%v/deovr/%v", session.DeoRequestHost, dnt)
-
-	var r models.RequestSceneList
-	r.IsAccessible = optional.NewBool(true)
-	r.IsAvailable = optional.NewBool(true)
-	r.Cast = []optional.String{optional.NewString(strconv.Itoa(actorID))}
-
-	summaries := models.QuerySceneSummaries(r)
-	scenes := scenesToDeoList(req, summaries)
-
-	sceneLists := []DeoListScenes{
-		{
-			Name: "Back",
-			List: []DeoListItem{
-				{
-					Title:        "Back to library",
-					ThumbnailURL: deoAbsoluteURL(actor.ImageUrl),
-					VideoURL:     backURL,
-				},
-			},
-		},
-		{
-			Name: actor.Name,
-			List: scenes,
-		},
-	}
 
 	resp.WriteHeaderAndEntity(http.StatusOK, DeoLibrary{
 		Authorized: "1",
