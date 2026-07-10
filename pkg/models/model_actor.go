@@ -369,16 +369,16 @@ func QueryActors(r RequestActorList, enablePreload bool) ResponseActorList {
 	}
 	// Cup size order A-K (index 0-9), each index includes DB aliases
 	cupGroups := [][]string{
-		{"A", "AA"},           // 0 = A
-		{"B"},                 // 1 = B
-		{"C"},                 // 2 = C
+		{"A", "AA"},          // 0 = A
+		{"B"},                // 1 = B
+		{"C"},                // 2 = C
 		{"D", "DD", "DDD"},   // 3 = D
-		{"E"},                 // 4 = E
+		{"E"},                // 4 = E
 		{"F", "FF"},          // 5 = F
 		{"G", "GG"},          // 6 = G
 		{"H", "HH"},          // 7 = H
 		{"J", "JJ"},          // 8 = J
-		{"K"},                 // 9 = K
+		{"K"},                // 9 = K
 	}
 	minCup := r.MinCupSize.OrElse(0)
 	maxCup := r.MaxCupSize.OrElse(len(cupGroups) - 1)
