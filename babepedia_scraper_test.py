@@ -647,6 +647,37 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
     conn.close()
 
 
+SCRAPER_SOURCE = "babepedia_scraper"
+
+
+def is_already_scraped(db_path, actor_id):
+    """Return True if actor was already processed by babepedia_scraper."""
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM action_actors WHERE source=? AND actor_id=? LIMIT 1",
+        (SCRAPER_SOURCE, actor_id)
+    )
+    found = cur.fetchone() is not None
+    conn.close()
+    return found
+
+
+def mark_as_scraped(db_path, actor_id, actor_name):
+    """Insert a marker record so actor is skipped on next run."""
+    import sqlite3
+    from datetime import datetime, timezone
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO action_actors (created_at, actor_id, action_type, source, changed_column, new_value) VALUES (?, ?, ?, ?, ?, ?)",
+        (datetime.now(timezone.utc).isoformat(), actor_id, "scrape", SCRAPER_SOURCE, "scraped", actor_name)
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_actors_with_available_scenes(db_path):
     """Return list of (id, name) for actors that have at least one is_available=1 scene."""
     import sqlite3
@@ -719,6 +750,9 @@ if __name__ == "__main__":
             actors = actors[args.skip:]
         for idx, (actor_id, actor_name) in enumerate(actors, start=args.skip + 1):
             babe_slug = actor_name.replace(" ", "_")
+            if not args.overwrite and is_already_scraped(args.db, actor_id):
+                print(f"[{idx}/{total}] {actor_name} -> [SKIP] already scraped")
+                continue
             print(f"\n[{idx}/{total}] {actor_name} -> {babe_slug}")
             try:
                 scraped = scrape_babepedia(babe_slug)
@@ -728,6 +762,8 @@ if __name__ == "__main__":
             if scraped and args.update:
                 update_actor_db(args.db, actor_id, actor_name, scraped,
                                 overwrite=args.overwrite, dry_run=args.dry_run)
+                if not args.dry_run:
+                    mark_as_scraped(args.db, actor_id, actor_name)
             if args.delay > 0:
                 time.sleep(args.delay)
 
@@ -741,11 +777,16 @@ if __name__ == "__main__":
             if not babe:
                 print(f"  [SKIP] Cannot parse babe name from {bp_url}")
                 continue
+            if not args.overwrite and is_already_scraped(args.db, actor_id):
+                print(f"  [SKIP] {actor_name}: already scraped")
+                continue
             print(f"\n{'='*60}\n{actor_name} (id={actor_id}) -> {bp_url}")
             scraped = scrape_babepedia(babe)
             if scraped:
                 update_actor_db(args.db, actor_id, actor_name, scraped,
                                 overwrite=args.overwrite, dry_run=args.dry_run)
+                if not args.dry_run:
+                    mark_as_scraped(args.db, actor_id, actor_name)
 
     elif args.babe:
         scraped = scrape_babepedia(args.babe)
