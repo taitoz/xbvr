@@ -666,7 +666,7 @@ func (i DeoVRResource) getDeoLibrary(req *restful.Request, resp *restful.Respons
 		var r models.RequestSceneList
 		r.IsAccessible = optional.NewBool(true)
 		r.IsAvailable = optional.NewBool(true)
-		r.Cast = []optional.String{optional.NewString(strconv.FormatUint(uint64(actors[i].ID), 10))}
+		r.Cast = []optional.String{optional.NewString(actors[i].Name)}
 
 		summaries := models.QuerySceneSummaries(r)
 		if len(summaries) > 0 {
@@ -729,7 +729,7 @@ func (i DeoVRResource) getDeoActorLibrary(req *restful.Request, resp *restful.Re
 	var r models.RequestSceneList
 	r.IsAccessible = optional.NewBool(true)
 	r.IsAvailable = optional.NewBool(true)
-	r.Cast = []optional.String{optional.NewString(strconv.FormatUint(uint64(actorID), 10))}
+	r.Cast = []optional.String{optional.NewString(actor.Name)}
 
 	summaries := models.QuerySceneSummaries(r)
 	scenes := scenesToDeoList(req, summaries)
