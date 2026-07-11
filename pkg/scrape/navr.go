@@ -377,12 +377,16 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 				imageURL = m[1]
 			}
 		}
+		if imageURL == "" {
+			imageURL = e.ChildAttr(`meta[property="og:image"]`, "content")
+		}
 		if strings.HasPrefix(imageURL, "//") {
 			imageURL = "https:" + imageURL
 		}
 
 		// Skip scene if we could not extract the minimum required data
 		if sc.Title == "" || imageURL == "" {
+			log.Warnf("NAVR: skipping scene %s (title=%q image=%q)", sc.HomepageURL, sc.Title, imageURL)
 			return
 		}
 
@@ -412,6 +416,13 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 		sceneCollector.Visit(singleSceneURL)
 	} else {
 		apiScenes, err := fetchNAVRPages(limitScraping)
+		knownCount := 0
+		for _, s := range apiScenes {
+			if funk.ContainsString(knownScenes, strings.Split(s.SceneURL, "?")[0]) {
+				knownCount++
+			}
+		}
+		log.Infof("NAVR: API returned %d scenes, %d already known, %d to visit", len(apiScenes), knownCount, len(apiScenes)-knownCount)
 		if len(apiScenes) == 0 {
 			log.Errorf("NAVR API list failed or returned no scenes, falling back to HTML listing: %v", err)
 
@@ -465,6 +476,7 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 				ctx.Put("apiScene", string(apiJSON))
 				sceneCollector.Request("GET", sceneURL, nil, ctx, nil)
 			}
+			sceneCollector.Wait()
 		}
 	}
 
