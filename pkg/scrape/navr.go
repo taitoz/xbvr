@@ -97,37 +97,81 @@ func hasVRTag(tags []string) bool {
 	return false
 }
 
+func fetchNAVRPage(page int) (naScenesResponse, error) {
+	var r naScenesResponse
+	u := fmt.Sprintf("https://api.naughtyapi.com/tools/scenes/scenes?page=%d", page)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return r, err
+	}
+	req.Header.Set("User-Agent", naUserAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Referer", "https://www.naughtyamerica.com/")
+
+	resp, err := naHTTPClient.Do(req)
+	if err != nil {
+		return r, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return r, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return r, fmt.Errorf("API returned %d", resp.StatusCode)
+	}
+	if err := json.Unmarshal(body, &r); err != nil {
+		return r, err
+	}
+	return r, nil
+}
+
+// fetchNAVRPages walks every page of the NaughtyAmerica scenes API and returns
+// all scenes tagged as VR. Individual page failures are retried a few times
+// and, if still failing, skipped (rather than aborting the whole pagination
+// and discarding everything already collected).
 func fetchNAVRPages(limitScraping bool) ([]naSceneAPI, error) {
 	var all []naSceneAPI
 	page := 1
+	lastPage := 0
+	const maxRetries = 3
+	consecutiveFailures := 0
+	const maxConsecutiveFailures = 5
+
 	for {
 		if limitScraping && page > 1 {
 			break
 		}
-		u := fmt.Sprintf("https://api.naughtyapi.com/tools/scenes/scenes?page=%d", page)
-		req, err := http.NewRequest("GET", u, nil)
-		if err != nil {
-			return all, err
-		}
-		req.Header.Set("User-Agent", naUserAgent)
-		req.Header.Set("Accept", "application/json")
-		req.Header.Set("Referer", "https://www.naughtyamerica.com/")
-		log.Infof("NAVR: fetching API page %d", page)
-		resp, err := naHTTPClient.Do(req)
-		if err != nil {
-			return all, err
-		}
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return all, fmt.Errorf("API returned %d", resp.StatusCode)
-		}
 
 		var r naScenesResponse
-		if err := json.Unmarshal(body, &r); err != nil {
-			return all, err
+		var err error
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			log.Infof("NAVR: fetching API page %d (attempt %d/%d)", page, attempt, maxRetries)
+			r, err = fetchNAVRPage(page)
+			if err == nil {
+				break
+			}
+			log.Warnf("NAVR: error fetching API page %d: %v", page, err)
+			time.Sleep(time.Duration(attempt) * 2 * time.Second)
 		}
-		log.Infof("NAVR: API page %d returned %d scenes", page, len(r.Data))
+
+		if err != nil {
+			consecutiveFailures++
+			log.Errorf("NAVR: giving up on API page %d after %d attempts: %v", page, maxRetries, err)
+			if consecutiveFailures >= maxConsecutiveFailures {
+				log.Errorf("NAVR: too many consecutive failed pages, stopping pagination at page %d", page)
+				break
+			}
+			page++
+			if lastPage > 0 && page > lastPage {
+				break
+			}
+			continue
+		}
+		consecutiveFailures = 0
+		lastPage = r.LastPage
+
+		log.Infof("NAVR: API page %d/%d returned %d scenes", page, r.LastPage, len(r.Data))
 
 		for _, s := range r.Data {
 			if !hasVRTag(s.Tags) {
@@ -143,7 +187,9 @@ func fetchNAVRPages(limitScraping bool) ([]naSceneAPI, error) {
 			break
 		}
 		page++
+		time.Sleep(200 * time.Millisecond)
 	}
+	log.Infof("NAVR: collected %d VR scenes from API", len(all))
 	return all, nil
 }
 
@@ -366,7 +412,7 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 		sceneCollector.Visit(singleSceneURL)
 	} else {
 		apiScenes, err := fetchNAVRPages(limitScraping)
-		if err != nil || len(apiScenes) == 0 {
+		if len(apiScenes) == 0 {
 			log.Errorf("NAVR API list failed or returned no scenes, falling back to HTML listing: %v", err)
 
 			siteCollector := createCollector("www.naughtyamerica.com")
