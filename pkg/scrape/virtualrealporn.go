@@ -3,12 +3,9 @@ package scrape
 import (
 	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"html"
 	"image"
-	"io"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,29 +17,6 @@ import (
 	"github.com/xbapps/xbvr/pkg/models"
 	_ "golang.org/x/image/webp"
 )
-
-type vrpSitemapIndex struct {
-	XMLName  xml.Name     `xml:"http://www.sitemaps.org/schemas/sitemap/0.9 sitemapindex"`
-	Sitemaps []vrpSitemap `xml:"sitemap"`
-}
-
-type vrpSitemap struct {
-	Loc string `xml:"loc"`
-}
-
-type vrpURLSet struct {
-	XMLName xml.Name `xml:"http://www.sitemaps.org/schemas/sitemap/0.9 urlset"`
-	URLs    []vrpURL `xml:"url"`
-}
-
-type vrpURL struct {
-	Loc   string   `xml:"loc"`
-	Image vrpImage `xml:"http://www.google.com/schemas/sitemap-image/1.1 image"`
-}
-
-type vrpImage struct {
-	Loc string `xml:"http://www.google.com/schemas/sitemap-image/1.1 loc"`
-}
 
 type vrpVideoLD struct {
 	Type        string `json:"@type"`
@@ -77,21 +51,19 @@ func parseISODurationMinutes(s string) int {
 	return total
 }
 
-func fetchVRPXML(u string) ([]byte, error) {
-	req, err := http.NewRequest("GET", u, nil)
-	if err != nil {
-		return nil, err
+func parseVRPMetaDuration(s string) int {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	// Format examples: "13:20 MIN | ...", "1:05:30 MIN | ..."
+	if m := regexp.MustCompile(`(\d+):(\d+):(\d+)\s*MIN`).FindStringSubmatch(s); m != nil {
+		h, _ := strconv.Atoi(m[1])
+		mn, _ := strconv.Atoi(m[2])
+		return h*60 + mn
 	}
-	req.Header.Set("User-Agent", UserAgent)
-	req.Header.Set("Cookie", "vrn_age_gate=1")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
+	if m := regexp.MustCompile(`(\d+):(\d+)\s*MIN`).FindStringSubmatch(s); m != nil {
+		mn, _ := strconv.Atoi(m[1])
+		return mn
 	}
-	defer resp.Body.Close()
-
-	return io.ReadAll(resp.Body)
+	return 0
 }
 
 func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, scraperID string, siteID string, URL string, singeScrapeAdditionalInfo string, limitScraping bool) error {
@@ -99,9 +71,10 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 	logScrapeStart(scraperID, siteID)
 	imageCollector := createCollector("virtualrealporn.com", "virtualrealtrans.com", "virtualrealgay.com", "virtualrealpassion.com", "virtualrealamateurporn.com", "static.virtualrealhub.com")
 	sceneCollector := createCollector("virtualrealporn.com", "virtualrealtrans.com", "virtualrealgay.com", "virtualrealpassion.com", "virtualrealamateurporn.com")
+	siteCollector := createCollector("virtualrealporn.com", "virtualrealtrans.com", "virtualrealgay.com", "virtualrealpassion.com", "virtualrealamateurporn.com")
 
 	// Bypass age-gate overlay on all requests
-	for _, c := range []*colly.Collector{imageCollector, sceneCollector} {
+	for _, c := range []*colly.Collector{imageCollector, sceneCollector, siteCollector} {
 		c.OnRequest(func(r *colly.Request) {
 			r.Headers.Set("Cookie", "vrn_age_gate=1")
 		})
@@ -121,20 +94,13 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 		sc.Site = siteID
 		sc.HomepageURL = strings.Split(e.Request.URL.String(), "?")[0]
 
-		// Scene ID from sitemap context or from cover image URL
+		// Scene ID passed from list card thumbnail URL
 		sc.SiteID = e.Request.Ctx.Get("siteID")
-		if sc.SiteID == "" {
-			if m := regexp.MustCompile(`/videos/(\d+)/`).FindStringSubmatch(e.ChildAttr(`picture.vdi-cover__poster source`, "srcset")); m != nil {
-				sc.SiteID = m[1]
-			} else if m := regexp.MustCompile(`/videos/(\d+)/`).FindStringSubmatch(e.ChildAttr(`picture.vdi-cover__poster img`, "src")); m != nil {
-				sc.SiteID = m[1]
-			}
-		}
 		if sc.SiteID != "" {
 			sc.SceneID = slugify.Slugify(sc.Site) + "-" + sc.SiteID
 		}
 
-		// JSON-LD VideoObject (title, description, date, duration)
+		// JSON-LD fallback (date, title, description, duration)
 		var videoObj vrpVideoLD
 		e.ForEach(`script[type="application/ld+json"]`, func(_ int, el *colly.HTMLElement) {
 			if videoObj.Type != "" {
@@ -147,7 +113,9 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 		})
 
 		// Title
-		if videoObj.Name != "" {
+		if t := strings.TrimSpace(e.ChildText(".vdi-info__title")); t != "" {
+			sc.Title = html.UnescapeString(t)
+		} else if videoObj.Name != "" {
 			sc.Title = html.UnescapeString(videoObj.Name)
 		} else {
 			e.ForEach(`title`, func(id int, e *colly.HTMLElement) {
@@ -157,17 +125,24 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 			})
 		}
 
-		// Synopsis
-		if videoObj.Description != "" {
+		// Synopsis / description
+		if d := strings.TrimSpace(e.ChildText(".vdi-info__description-text")); d != "" {
+			sc.Synopsis = html.UnescapeString(d)
+		} else if videoObj.Description != "" {
 			sc.Synopsis = html.UnescapeString(videoObj.Description)
 		}
 
-		// Release date and duration
+		// Duration from meta text (floor to minutes), fallback to JSON-LD
+		if metaText := strings.TrimSpace(e.ChildText(".vdi-info__meta-text")); metaText != "" {
+			sc.Duration = parseVRPMetaDuration(metaText)
+		}
+		if sc.Duration == 0 && videoObj.Duration != "" {
+			sc.Duration = parseISODurationMinutes(videoObj.Duration)
+		}
+
+		// Release date from JSON-LD
 		if videoObj.UploadDate != "" {
 			sc.Released = strings.Split(videoObj.UploadDate, "T")[0]
-		}
-		if videoObj.Duration != "" {
-			sc.Duration = parseISODurationMinutes(videoObj.Duration)
 		}
 
 		// Tags
@@ -178,9 +153,9 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 			sc.Tags = append(sc.Tags, "Gay")
 		}
 
-		// Cast
+		// Cast from pornstars list
 		sc.ActorDetails = make(map[string]models.ActorDetails)
-		e.ForEach(`.vd-pornstar__link`, func(_ int, el *colly.HTMLElement) {
+		e.ForEach(`.vd-pornstars__list .vd-pornstar__link`, func(_ int, el *colly.HTMLElement) {
 			name := strings.TrimSpace(el.ChildText(".vd-pornstar__name"))
 			if name == "" {
 				return
@@ -191,7 +166,7 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 		})
 
 		// Cover URLs (prefer webp poster, fallback to jpg)
-		e.ForEach(`picture.vdi-cover__poster source[type="image/webp"]`, func(id int, e *colly.HTMLElement) {
+		e.ForEach(`.vdi-cover__poster source[type="image/webp"]`, func(id int, e *colly.HTMLElement) {
 			if len(sc.Covers) == 0 {
 				u := strings.Split(e.Request.AbsoluteURL(e.Attr("srcset")), "?")[0]
 				ctx := colly.NewContext()
@@ -202,7 +177,7 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 				}
 			}
 		})
-		e.ForEach(`picture.vdi-cover__poster img`, func(id int, e *colly.HTMLElement) {
+		e.ForEach(`.vdi-cover__poster img`, func(id int, e *colly.HTMLElement) {
 			if len(sc.Covers) == 0 {
 				u := strings.Split(e.Request.AbsoluteURL(e.Attr("src")), "?")[0]
 				ctx := colly.NewContext()
@@ -215,13 +190,9 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 		})
 
 		// Gallery
-		e.ForEach(`a.vd-screenshots__item[data-gallery-src]`, func(id int, e *colly.HTMLElement) {
+		e.ForEach(`.vd-screenshots__grid a.vd-screenshots__item[data-gallery-src]`, func(id int, e *colly.HTMLElement) {
 			u := e.Request.AbsoluteURL(strings.Split(e.Attr("data-gallery-src"), "?")[0])
-			if len(sc.Covers) == 0 {
-				sc.Covers = append(sc.Covers, u)
-			} else {
-				sc.Gallery = append(sc.Gallery, u)
-			}
+			sc.Gallery = append(sc.Gallery, u)
 		})
 
 		// Filenames (old download-links script still present on some pages)
@@ -305,65 +276,56 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 		}
 	})
 
-	// Fetch sitemap index to locate the videos sitemap for this domain
-	var videoSitemapURL string
-	if indexBytes, err := fetchVRPXML(URL + "sitemap.xml"); err == nil {
-		var sidx vrpSitemapIndex
-		if err := xml.Unmarshal(indexBytes, &sidx); err == nil {
-			for _, sm := range sidx.Sitemaps {
-				if strings.Contains(sm.Loc, "videos_sitemap.xml") {
-					videoSitemapURL = sm.Loc
-					break
-				}
+	// List pages: discover pagination, then visit every page
+	maxPage := 0
+	siteIDRegex := regexp.MustCompile(`/videos/(\d+)/`)
+
+	siteCollector.OnHTML(`.pagination-controls`, func(e *colly.HTMLElement) {
+		if maxPage > 0 {
+			return
+		}
+		e.ForEach(`.pagination-page`, func(_ int, el *colly.HTMLElement) {
+			if n, err := strconv.Atoi(strings.TrimSpace(el.Text)); err == nil && n > maxPage {
+				maxPage = n
+			}
+		})
+		if maxPage > 1 && !limitScraping {
+			for page := 2; page <= maxPage; page++ {
+				siteCollector.Visit(URL + "videos/?page=" + strconv.Itoa(page))
 			}
 		}
-	}
-	if videoSitemapURL == "" {
-		videoSitemapURL = URL + "sitemaps/" + GetCoreDomain(URL) + "/videos_sitemap.xml"
-	}
+	})
 
-	sitemapBytes, err := fetchVRPXML(videoSitemapURL)
-	if err != nil {
-		log.Errorf("Error fetching VRP sitemap %s: %v", videoSitemapURL, err)
-		logScrapeFinished(scraperID, siteID)
-		return nil
-	}
-
-	var uset vrpURLSet
-	if err := xml.Unmarshal(sitemapBytes, &uset); err != nil {
-		log.Errorf("Error parsing VRP sitemap %s: %v", videoSitemapURL, err)
-		logScrapeFinished(scraperID, siteID)
-		return nil
-	}
-
-	siteIDRegex := regexp.MustCompile(`/videos/(\d+)/`)
-	sceneCount := 0
-	for _, u := range uset.URLs {
-		sceneURL := strings.Split(u.Loc, "?")[0]
+	// Scene cards on list pages
+	siteCollector.OnHTML(`.card`, func(e *colly.HTMLElement) {
+		sceneLink := e.ChildAttr("a.card-link", "href")
+		if sceneLink == "" {
+			return
+		}
+		sceneURL := strings.Split(e.Request.AbsoluteURL(sceneLink), "?")[0]
 
 		if funk.ContainsString(knownScenes, sceneURL) {
-			continue
+			return
 		}
 
 		id := ""
-		if u.Image.Loc != "" {
-			if m := siteIDRegex.FindStringSubmatch(u.Image.Loc); m != nil {
-				id = m[1]
-			}
+		imgSrc := e.ChildAttr(".img picture img", "src")
+		if imgSrc == "" {
+			imgSrc = e.ChildAttr(".img picture source", "srcset")
+		}
+		if m := siteIDRegex.FindStringSubmatch(imgSrc); m != nil {
+			id = m[1]
 		}
 
 		ctx := colly.NewContext()
 		ctx.Put("siteID", id)
 		sceneCollector.Request("GET", sceneURL, nil, ctx, nil)
-
-		sceneCount++
-		if limitScraping && sceneCount >= 20 {
-			break
-		}
-	}
+	})
 
 	if singleSceneURL != "" {
 		sceneCollector.Visit(singleSceneURL)
+	} else {
+		siteCollector.Visit(URL + "videos/?page=1")
 	}
 
 	if updateSite {
