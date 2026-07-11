@@ -76,6 +76,23 @@ type naScenesResponse struct {
 	Data        []naSceneAPI `json:"data"`
 }
 
+// naFlexibleStringMap unmarshals a JSON object into a map, but also tolerates
+// the API returning an empty array for the same field.
+type naFlexibleStringMap map[string]string
+
+func (m *naFlexibleStringMap) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" || (len(data) > 0 && data[0] == '[') {
+		*m = nil
+		return nil
+	}
+	var raw map[string]string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*m = raw
+	return nil
+}
+
 type naSceneAPI struct {
 	ID             int                 `json:"id"`
 	Title          string              `json:"title"`
@@ -86,8 +103,8 @@ type naSceneAPI struct {
 	Synopsis       string              `json:"synopsis"`
 	Tags           []string            `json:"tags"`
 	Performers     map[string][]string `json:"performers"`
-	PromoVideoData map[string]string   `json:"promo_video_data"`
-	Trailers       map[string]string   `json:"trailers"`
+	PromoVideoData naFlexibleStringMap `json:"promo_video_data"`
+	Trailers       naFlexibleStringMap `json:"trailers"`
 }
 
 func hasVRTag(tags []string) bool {
