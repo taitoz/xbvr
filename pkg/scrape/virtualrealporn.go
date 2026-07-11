@@ -14,6 +14,7 @@ import (
 	"github.com/thoas/go-funk"
 	"github.com/tidwall/gjson"
 	"github.com/xbapps/xbvr/pkg/models"
+	_ "golang.org/x/image/webp"
 )
 
 func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, scraperID string, siteID string, URL string, singeScrapeAdditionalInfo string, limitScraping bool) error {
@@ -56,7 +57,18 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 			sc.Title = strings.TrimSpace(strings.Replace(sc.Title, fmt.Sprintf(" - %v.com", sc.Site), "", -1))
 		})
 
-		// Cover URLs
+		// Cover URLs (prefer webp poster, fallback to og:image)
+		e.ForEach(`picture.vdi-cover__poster source[type="image/webp"]`, func(id int, e *colly.HTMLElement) {
+			if len(sc.Covers) == 0 {
+				u := strings.Split(e.Request.AbsoluteURL(e.Attr("srcset")), "?")[0]
+				ctx := colly.NewContext()
+				if err := imageCollector.Request("GET", u, nil, ctx, nil); err == nil {
+					if ctx.Get("valid") != "" {
+						sc.Covers = append(sc.Covers, u)
+					}
+				}
+			}
+		})
 		e.ForEach(`meta[property="og:image"]`, func(id int, e *colly.HTMLElement) {
 			if len(sc.Covers) == 0 {
 				u := strings.Split(e.Request.AbsoluteURL(e.Attr("content")), "?")[0]
@@ -70,9 +82,9 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 		})
 
 		// Gallery
-		e.ForEach(`figure[itemprop="associatedMedia"] a`, func(id int, e *colly.HTMLElement) {
+		e.ForEach(`a[data-gallery-src]`, func(id int, e *colly.HTMLElement) {
 			if len(sc.Covers) == 0 {
-				u := e.Request.AbsoluteURL(strings.Split(e.Attr("href"), "?")[0])
+				u := e.Request.AbsoluteURL(strings.Split(e.Attr("data-gallery-src"), "?")[0])
 				ctx := colly.NewContext()
 				if err := imageCollector.Request("GET", u, nil, ctx, nil); err == nil {
 					if ctx.Get("valid") != "" {
@@ -80,7 +92,7 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 					}
 				}
 			} else {
-				sc.Gallery = append(sc.Gallery, e.Request.AbsoluteURL(strings.Split(e.Attr("href"), "?")[0]))
+				sc.Gallery = append(sc.Gallery, e.Request.AbsoluteURL(strings.Split(e.Attr("data-gallery-src"), "?")[0]))
 			}
 		})
 
