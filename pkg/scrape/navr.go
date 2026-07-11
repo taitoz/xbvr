@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gocolly/colly/v2"
@@ -64,6 +66,62 @@ func getNaughtyAmericaSceneID(sceneURL string) string {
 	return tmp[len(tmp)-1]
 }
 
+func parseNADuration(s string) int {
+	s = strings.ToLower(strings.TrimSpace(s))
+	total := 0
+
+	if h := regexp.MustCompile(`(\d+)\s*h`).FindStringSubmatch(s); h != nil {
+		if n, err := strconv.Atoi(h[1]); err == nil {
+			total += n * 60
+		}
+	}
+	if m := regexp.MustCompile(`(\d+)\s*min`).FindStringSubmatch(s); m != nil {
+		if n, err := strconv.Atoi(m[1]); err == nil {
+			total += n
+		}
+	}
+
+	return total
+}
+
+func getNABasePrefixSlug(imageURL string) (string, string) {
+	parts := strings.Split(imageURL, "/scenes/")
+	if len(parts) < 2 {
+		return "", ""
+	}
+	segs := strings.Split(parts[1], "/")
+	if len(segs) < 2 {
+		return "", ""
+	}
+	return segs[0], segs[1]
+}
+
+func buildNACovers(imageURL string) ([]string, []string) {
+	var covers, gallery []string
+	if imageURL == "" {
+		return covers, gallery
+	}
+
+	imageURL = strings.Split(imageURL, "?")[0]
+	m := regexp.MustCompile(`^(.*scene/)`).FindStringSubmatch(imageURL)
+	if len(m) < 2 {
+		return covers, gallery
+	}
+	base := m[1]
+
+	covers = append(covers, imageURL)
+	covers = append(covers, base+"vertical/1182x1788c.jpg")
+	covers = append(covers, base+"horizontal/1182x777c.jpg")
+
+	gallery = append(gallery, base+"image1/1182x777c.jpg")
+	gallery = append(gallery, base+"image2/1000x563c.jpg")
+	gallery = append(gallery, base+"image3/1000x563c.jpg")
+	gallery = append(gallery, base+"image4/1000x563c.jpg")
+	gallery = append(gallery, base+"image3/1279x852c.jpg")
+
+	return covers, gallery
+}
+
 func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, singeScrapeAdditionalInfo string, limitScraping bool) error {
 	defer wg.Done()
 	scraperID := "naughtyamericavr"
@@ -71,120 +129,24 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 	logScrapeStart(scraperID, siteID)
 
 	siteCollector := createCollector("www.naughtyamerica.com")
+	sceneCollector := createCollector("www.naughtyamerica.com")
 
-	processScene := func(sceneURL string, listCard *colly.HTMLElement) bool {
-		sceneURL = strings.Split(sceneURL, "?")[0]
-		sceneID := getNaughtyAmericaSceneID(sceneURL)
+	maxPage := 0
 
-		apiScene, ok := fetchNaughtyAmericaScene(sceneID)
-		if !ok {
-			return false
+	// Parse the pagination block once to discover the last page, then queue all remaining pages.
+	siteCollector.OnHTML(`ul.pagination`, func(e *colly.HTMLElement) {
+		if maxPage > 0 {
+			return
 		}
-
-		sc := models.ScrapedScene{}
-		sc.ScraperID = scraperID
-		sc.SceneType = "VR"
-		sc.Studio = "NaughtyAmerica"
-		sc.Site = siteID
-		sc.HomepageURL = sceneURL
-		sc.MembersUrl = strings.Replace(sceneURL, "https://www.naughtyamerica.com/", "https://members.naughtyamerica.com/", 1)
-		sc.SiteID = sceneID
-		sc.SceneID = slugify.Slugify(sc.Site) + "-" + sc.SiteID
-
-		// Title: site title + scene title when available from list card
-		if listCard != nil {
-			siteTitle := strings.TrimSpace(listCard.ChildText("a.site-title"))
-			if siteTitle != "" && apiScene.Title != "" {
-				sc.Title = siteTitle + " - " + apiScene.Title
-			} else {
-				sc.Title = apiScene.Title
+		e.ForEach(`li a`, func(_ int, el *colly.HTMLElement) {
+			if n, err := strconv.Atoi(strings.TrimSpace(el.Text)); err == nil && n > maxPage {
+				maxPage = n
 			}
-		} else {
-			sc.Title = apiScene.Title
-		}
-
-		// Date
-		if listCard != nil {
-			dateText := strings.TrimSpace(listCard.ChildText("div.entry-date p.light-grey-text"))
-			if dateText != "" {
-				tmpDate, _ := goment.New(dateText, "MMM DD, YYYY")
-				sc.Released = tmpDate.Format("YYYY-MM-DD")
+		})
+		if maxPage > 1 && !limitScraping {
+			for page := 2; page <= maxPage; page++ {
+				siteCollector.Visit("https://www.naughtyamerica.com/vr-porn?page=" + strconv.Itoa(page))
 			}
-		}
-
-		// Duration (API returns milliseconds)
-		if apiScene.Duration > 0 {
-			sc.Duration = apiScene.Duration / 60000
-		}
-
-		sc.Synopsis = apiScene.Description
-
-		// Tags
-		for _, t := range apiScene.Tags {
-			sc.Tags = append(sc.Tags, t.Name)
-		}
-
-		// Cast from list card
-		sc.ActorDetails = make(map[string]models.ActorDetails)
-		if listCard != nil {
-			listCard.ForEach("p.contain-actors a.title", func(id int, e *colly.HTMLElement) {
-				name := strings.TrimSpace(e.Text)
-				if name == "" {
-					return
-				}
-				sc.Cast = append(sc.Cast, name)
-				sc.ActorDetails[name] = models.ActorDetails{Source: scraperID + " scrape", ProfileUrl: strings.SplitN(e.Request.AbsoluteURL(e.Attr("href")), "?", 2)[0]}
-			})
-		}
-
-		// Trailer
-		sc.TrailerType = "heresphere"
-		params := models.TrailerScrape{SceneUrl: "https://api.naughtyapi.com/heresphere/" + sc.SiteID}
-		strParams, _ := json.Marshal(params)
-		sc.TrailerSrc = string(strParams)
-
-		// Covers & filenames from list card image
-		if listCard != nil {
-			vertWebp := listCard.ChildAttr("a.contain-img.vr-scene-item picture source[type='image/webp']", "srcset")
-			if vertWebp != "" {
-				vertWebp = listCard.Request.AbsoluteURL(strings.Split(vertWebp, "?")[0])
-
-				// horizontal webp
-				sc.Covers = append(sc.Covers, strings.Replace(vertWebp, "/vertical/1182x1788c.webp", "/horizontal/1182x777c.webp", 1))
-				// vertical webp
-				sc.Covers = append(sc.Covers, vertWebp)
-				// horizontal jpg
-				sc.Covers = append(sc.Covers, strings.Replace(vertWebp, "/vertical/1182x1788c.webp", "/horizontal/1182x777c.jpg", 1))
-				// vertical jpg
-				sc.Covers = append(sc.Covers, strings.Replace(vertWebp, "/vertical/1182x1788c.webp", "/vertical/1182x1788c.jpg", 1))
-
-				base := strings.Split(strings.Replace(vertWebp, "//", "", -1), "/")
-				if len(base) >= 7 {
-					baseName := base[5] + base[6]
-					defaultBaseName := "nam" + base[6]
-					filenames := []string{"_180x180_3dh.mp4", "_smartphonevr60.mp4", "_smartphonevr30.mp4", "_vrdesktopsd.mp4", "_vrdesktophd.mp4", "_180_sbs.mp4", "_6kvr264.mp4", "_6kvr265.mp4", "_8kvr265.mp4"}
-					for i := range filenames {
-						sc.Filenames = append(sc.Filenames, baseName+filenames[i], defaultBaseName+filenames[i])
-					}
-				}
-			}
-		} else {
-			// Single scene fallback: use API thumbnail and construct webp variants
-			if apiScene.ThumbnailImage != "" {
-				thumb := strings.Split(apiScene.ThumbnailImage, "?")[0]
-				sc.Covers = append(sc.Covers, thumb)
-				sc.Covers = append(sc.Covers, strings.Replace(thumb, ".jpg", ".webp", 1))
-			}
-		}
-
-		out <- sc
-		return true
-	}
-
-	// Pagination
-	siteCollector.OnHTML(`ul.pagination li a[rel="next"]`, func(e *colly.HTMLElement) {
-		if !limitScraping {
-			siteCollector.Visit(e.Request.AbsoluteURL(e.Attr("href")))
 		}
 	})
 
@@ -200,11 +162,129 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 			return
 		}
 
-		processScene(sceneURL, e)
+		sceneCollector.Visit(sceneURL)
+	})
+
+	// Scene detail page
+	sceneCollector.OnHTML(`html`, func(e *colly.HTMLElement) {
+		sc := models.ScrapedScene{}
+		sc.ScraperID = scraperID
+		sc.SceneType = "VR"
+		sc.Studio = "NaughtyAmerica"
+		sc.Site = siteID
+		sc.HomepageURL = strings.Split(e.Request.URL.String(), "?")[0]
+		sc.MembersUrl = strings.Replace(sc.HomepageURL, "https://www.naughtyamerica.com/", "https://members.naughtyamerica.com/", 1)
+		sc.SiteID = getNaughtyAmericaSceneID(sc.HomepageURL)
+		sc.SceneID = slugify.Slugify(sc.Site) + "-" + sc.SiteID
+
+		// Title: site title + scene title
+		siteTitle := strings.TrimSpace(e.ChildText(`.site-title`))
+		if siteTitle == "" {
+			siteTitle = strings.TrimSpace(e.ChildText(`a.site-title`))
+		}
+		sceneTitle := strings.TrimSpace(e.ChildText(`.scene-title`))
+		if sceneTitle == "" {
+			sceneTitle = strings.TrimSpace(e.ChildText(`h1.scene-title`))
+		}
+		if siteTitle != "" && sceneTitle != "" {
+			sc.Title = siteTitle + " " + sceneTitle
+		} else if sceneTitle != "" {
+			sc.Title = sceneTitle
+		} else if siteTitle != "" {
+			sc.Title = siteTitle
+		}
+
+		// Date
+		dateText := strings.TrimSpace(e.ChildText(`.entry-date .light-grey-text`))
+		if dateText == "" {
+			dateText = strings.TrimSpace(e.ChildText(`div.entry-date`))
+		}
+		if dateText != "" {
+			tmpDate, _ := goment.New(dateText, "MMM DD, YYYY")
+			sc.Released = tmpDate.Format("YYYY-MM-DD")
+		}
+
+		// Duration
+		durText := strings.TrimSpace(e.ChildText(`.duration .light-grey-text`))
+		if durText == "" {
+			durText = strings.TrimSpace(e.ChildText(`div.duration`))
+		}
+		sc.Duration = parseNADuration(durText)
+
+		// Description
+		sc.Synopsis = strings.TrimSpace(e.ChildText(`.video-description`))
+
+		// Cast
+		sc.ActorDetails = make(map[string]models.ActorDetails)
+		e.ForEach(`.performer-list a`, func(_ int, el *colly.HTMLElement) {
+			name := strings.TrimSpace(el.Text)
+			if name == "" {
+				return
+			}
+			sc.Cast = append(sc.Cast, name)
+			sc.ActorDetails[name] = models.ActorDetails{Source: scraperID + " scrape", ProfileUrl: strings.SplitN(el.Request.AbsoluteURL(el.Attr("href")), "?", 2)[0]}
+		})
+
+		// Scene image from dl8-embed-container
+		imageURL := e.ChildAttr(`.dl8-embed-container dl8-video`, "poster")
+		if imageURL == "" {
+			imageURL = e.ChildAttr(`.dl8-embed-container img`, "src")
+		}
+		if imageURL == "" {
+			if m := regexp.MustCompile(`url\(["']?(.*?)["']?\)`).FindStringSubmatch(e.ChildAttr(`.dl8-embed-container`, "style")); m != nil {
+				imageURL = m[1]
+			}
+		}
+
+		// Fallback to Heresphere API for missing data and tags
+		apiScene, apiOK := fetchNaughtyAmericaScene(sc.SiteID)
+		if apiOK {
+			if sc.Title == "" {
+				sc.Title = apiScene.Title
+			}
+			if sc.Synopsis == "" {
+				sc.Synopsis = apiScene.Description
+			}
+			if sc.Duration == 0 {
+				sc.Duration = apiScene.Duration / 60000
+			}
+			if imageURL == "" {
+				imageURL = apiScene.ThumbnailImage
+			}
+			for _, t := range apiScene.Tags {
+				sc.Tags = append(sc.Tags, t.Name)
+			}
+		}
+
+		// Skip scene if we could not extract the minimum required data
+		if sc.Title == "" || imageURL == "" {
+			return
+		}
+
+		sc.Covers, sc.Gallery = buildNACovers(imageURL)
+
+		// Filenames
+		prefix, slug := getNABasePrefixSlug(imageURL)
+		if prefix != "" && slug != "" {
+			baseName := prefix + slug
+			defaultBaseName := "nam" + slug
+			filenames := []string{"_180x180_3dh.mp4", "_smartphonevr60.mp4", "_smartphonevr30.mp4", "_vrdesktopsd.mp4", "_vrdesktophd.mp4", "_180_sbs.mp4", "_6kvr264.mp4", "_6kvr265.mp4", "_8kvr265.mp4"}
+			for i := range filenames {
+				sc.Filenames = append(sc.Filenames, baseName+filenames[i], defaultBaseName+filenames[i])
+			}
+		}
+
+		// Trailer
+		sc.TrailerType = "heresphere"
+		params := models.TrailerScrape{SceneUrl: "https://api.naughtyapi.com/heresphere/" + sc.SiteID}
+		strParams, _ := json.Marshal(params)
+		sc.TrailerSrc = string(strParams)
+
+		out <- sc
 	})
 
 	if singleSceneURL != "" {
-		processScene(singleSceneURL, nil)
+		sceneCollector.Visit(singleSceneURL)
 	} else {
 		siteCollector.Visit("https://www.naughtyamerica.com/vr-porn")
 	}
