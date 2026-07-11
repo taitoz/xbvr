@@ -77,15 +77,17 @@ type naScenesResponse struct {
 }
 
 type naSceneAPI struct {
-	ID            int                 `json:"id"`
-	Title         string              `json:"title"`
-	Length        int                 `json:"length"`
-	PublishedDate string              `json:"published_date"`
-	SceneURL      string              `json:"scene_url"`
-	SiteName      string              `json:"site_name"`
-	Synopsis      string              `json:"synopsis"`
-	Tags          []string            `json:"tags"`
-	Performers    map[string][]string `json:"performers"`
+	ID             int                 `json:"id"`
+	Title          string              `json:"title"`
+	Length         int                 `json:"length"`
+	PublishedDate  string              `json:"published_date"`
+	SceneURL       string              `json:"scene_url"`
+	SiteName       string              `json:"site_name"`
+	Synopsis       string              `json:"synopsis"`
+	Tags           []string            `json:"tags"`
+	Performers     map[string][]string `json:"performers"`
+	PromoVideoData map[string]string   `json:"promo_video_data"`
+	Trailers       map[string]string   `json:"trailers"`
 }
 
 func hasVRTag(tags []string) bool {
@@ -262,6 +264,119 @@ func buildNACovers(imageURL string) ([]string, []string) {
 	gallery = append(gallery, base+"image3/1279x852c.jpg")
 
 	return covers, gallery
+}
+
+// getNAVRImageURL derives the static scene cover URL from promo/trailer URLs.
+// The promo URL path contains the site code and the image slug directly; trailer
+// URLs contain the site code plus the same slug prefixed with the site code.
+func getNAVRImageURL(apiScene naSceneAPI) string {
+	// promo_video_data URLs: .../public/promo/{site}/{imageSlug}/{filename}.mp4
+	for _, u := range apiScene.PromoVideoData {
+		parts := strings.Split(u, "/")
+		if len(parts) >= 3 {
+			site := parts[len(parts)-3]
+			slug := parts[len(parts)-2]
+			if site != "" && slug != "" {
+				return fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", site, slug)
+			}
+		}
+	}
+
+	// trailer URLs: .../nonsecure/{site}/trailers/vr/{site}{imageSlug}/{site}{imageSlug}teaser_...mp4
+	for _, u := range apiScene.Trailers {
+		parts := strings.Split(u, "/")
+		if len(parts) >= 9 {
+			site := parts[4]
+			slug := parts[7]
+			imageSlug := strings.TrimPrefix(slug, site)
+			if site != "" && imageSlug != "" {
+				return fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", site, imageSlug)
+			}
+		}
+	}
+
+	return ""
+}
+
+// processNAVRScene builds and emits a ScrapedScene directly from the API data,
+// avoiding the WAF-protected scene detail pages.
+func processNAVRScene(apiScene naSceneAPI, out chan<- models.ScrapedScene, scraperID, siteID string) {
+	sc := models.ScrapedScene{}
+	sc.ScraperID = scraperID
+	sc.SceneType = "VR"
+	sc.Studio = "NaughtyAmerica"
+	sc.Site = siteID
+	sc.HomepageURL = strings.Split(apiScene.SceneURL, "?")[0]
+	sc.MembersUrl = strings.Replace(sc.HomepageURL, "https://www.naughtyamerica.com/", "https://members.naughtyamerica.com/", 1)
+	sc.SiteID = getNaughtyAmericaSceneID(sc.HomepageURL)
+	sc.SceneID = slugify.Slugify(sc.Site) + "-" + sc.SiteID
+
+	siteTitle := strings.TrimSpace(apiScene.SiteName)
+	sceneTitle := strings.TrimSpace(apiScene.Title)
+	if siteTitle != "" && sceneTitle != "" {
+		sc.Title = siteTitle + " " + sceneTitle
+	} else if sceneTitle != "" {
+		sc.Title = sceneTitle
+	} else if siteTitle != "" {
+		sc.Title = siteTitle
+	}
+
+	if apiScene.PublishedDate != "" {
+		sc.Released = parseNADate(strings.Split(apiScene.PublishedDate, " ")[0])
+	}
+
+	if apiScene.Length > 0 {
+		sc.Duration = apiScene.Length / 60
+	}
+
+	sc.Synopsis = strings.TrimSpace(apiScene.Synopsis)
+
+	sc.ActorDetails = make(map[string]models.ActorDetails)
+	added := make(map[string]bool)
+	for _, names := range apiScene.Performers {
+		for _, name := range names {
+			name = strings.TrimSpace(name)
+			if name == "" || added[name] {
+				continue
+			}
+			added[name] = true
+			sc.Cast = append(sc.Cast, name)
+			sc.ActorDetails[name] = models.ActorDetails{
+				Source:     scraperID + " scrape",
+				ProfileUrl: "https://www.naughtyamerica.com/pornstar/" + slugify.Slugify(name),
+			}
+		}
+	}
+
+	sc.Tags = apiScene.Tags
+
+	imageURL := getNAVRImageURL(apiScene)
+	if imageURL == "" {
+		log.Warnf("NAVR: could not derive cover image for scene %s", sc.HomepageURL)
+		return
+	}
+	if strings.HasPrefix(imageURL, "//") {
+		imageURL = "https:" + imageURL
+	}
+
+	sc.Covers, sc.Gallery = buildNACovers(imageURL)
+
+	prefix, slug := getNABasePrefixSlug(imageURL)
+	if prefix != "" && slug != "" {
+		baseName := prefix + slug
+		defaultBaseName := "nam" + slug
+		filenames := []string{"_180x180_3dh.mp4", "_smartphonevr60.mp4", "_smartphonevr30.mp4", "_vrdesktopsd.mp4", "_vrdesktophd.mp4", "_180_sbs.mp4", "_6kvr264.mp4", "_6kvr265.mp4", "_8kvr265.mp4"}
+		for i := range filenames {
+			sc.Filenames = append(sc.Filenames, baseName+filenames[i], defaultBaseName+filenames[i])
+		}
+	}
+
+	sc.TrailerType = "heresphere"
+	params := models.TrailerScrape{SceneUrl: "https://api.naughtyapi.com/heresphere/" + sc.SiteID}
+	strParams, _ := json.Marshal(params)
+	sc.TrailerSrc = string(strParams)
+
+	out <- sc
 }
 
 func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string, out chan<- models.ScrapedScene, singleSceneURL string, singeScrapeAdditionalInfo string, limitScraping bool) error {
@@ -466,17 +581,16 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 
 			siteCollector.Visit("https://www.naughtyamerica.com/vr-porn")
 		} else {
+			newCount := 0
 			for _, s := range apiScenes {
 				sceneURL := strings.Split(s.SceneURL, "?")[0]
 				if funk.ContainsString(knownScenes, sceneURL) {
 					continue
 				}
-				apiJSON, _ := json.Marshal(s)
-				ctx := colly.NewContext()
-				ctx.Put("apiScene", string(apiJSON))
-				sceneCollector.Request("GET", sceneURL, nil, ctx, nil)
+				newCount++
+				processNAVRScene(s, out, scraperID, siteID)
 			}
-			sceneCollector.Wait()
+			log.Infof("NAVR: processed %d new scenes from API", newCount)
 		}
 	}
 
