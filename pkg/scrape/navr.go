@@ -70,17 +70,15 @@ type naScenesResponse struct {
 }
 
 type naSceneAPI struct {
-	ID             int                 `json:"id"`
-	Title          string              `json:"title"`
-	Length         int                 `json:"length"`
-	PublishedDate  string              `json:"published_date"`
-	SceneURL       string              `json:"scene_url"`
-	SiteName       string              `json:"site_name"`
-	Synopsis       string              `json:"synopsis"`
-	Tags           []string            `json:"tags"`
-	Performers     map[string][]string `json:"performers"`
-	Trailers       map[string]string   `json:"trailers"`
-	PromoVideoData map[string]string   `json:"promo_video_data"`
+	ID            int                 `json:"id"`
+	Title         string              `json:"title"`
+	Length        int                 `json:"length"`
+	PublishedDate string              `json:"published_date"`
+	SceneURL      string              `json:"scene_url"`
+	SiteName      string              `json:"site_name"`
+	Synopsis      string              `json:"synopsis"`
+	Tags          []string            `json:"tags"`
+	Performers    map[string][]string `json:"performers"`
 }
 
 func hasVRTag(tags []string) bool {
@@ -141,49 +139,6 @@ func parseNADate(s string) string {
 		}
 	}
 	return ""
-}
-
-func getNACoverFromAPI(scene naSceneAPI) string {
-	// Combine trailers and promo video URLs, prefer promo data for cover extraction
-	combined := make(map[string]string)
-	for k, v := range scene.Trailers {
-		combined[k] = v
-	}
-	for k, v := range scene.PromoVideoData {
-		combined[k] = v
-	}
-	if len(combined) == 0 {
-		return ""
-	}
-
-	var videoURL string
-	for _, v := range combined {
-		if v != "" {
-			videoURL = v
-			break
-		}
-	}
-	if videoURL == "" {
-		return ""
-	}
-
-	re := regexp.MustCompile(`.+(?:promo|\.com)/(?:nonsecure/)?([^/]+)/(?:trailers(?:/vr)?/)?([^/_]+)`)
-	m := re.FindStringSubmatch(videoURL)
-	if len(m) < 3 {
-		return ""
-	}
-	prefix := m[1]
-	name := m[2]
-	if strings.HasPrefix(strings.ToLower(name), strings.ToLower(prefix)) {
-		name = name[len(prefix):]
-	}
-	name = regexp.MustCompile(`(?i)(teaser|trailer)$`).ReplaceAllString(name, "")
-	if name == "" || prefix == "" {
-		return ""
-	}
-
-	resolution := "1279x852"
-	return fmt.Sprintf("https://images4.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/%sc.jpg", prefix, name, resolution)
 }
 
 func getNaughtyAmericaSceneID(sceneURL string) string {
@@ -378,9 +333,6 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 			if m := regexp.MustCompile(`url\(["']?(.*?)["']?\)`).FindStringSubmatch(e.ChildAttr(`.dl8-embed-container`, "style")); m != nil {
 				imageURL = m[1]
 			}
-		}
-		if imageURL == "" {
-			imageURL = getNACoverFromAPI(apiScene)
 		}
 
 		// Skip scene if we could not extract the minimum required data
