@@ -260,17 +260,6 @@ func VirtualRealPornSite(wg *models.ScrapeWG, updateSite bool, knownScenes []str
 			}
 		})
 
-		// Trailer
-		slug := ""
-		parts := strings.Split(strings.Trim(sc.HomepageURL, "/"), "/")
-		if len(parts) > 0 {
-			slug = parts[len(parts)-1]
-		}
-		if slug != "" {
-			sc.TrailerType = "url"
-			sc.TrailerSrc = e.Request.AbsoluteURL("/videos/" + slug + "/download/oculus/")
-		}
-
 		if sc.SceneID != "" && sc.Title != "" {
 			out <- sc
 		}
