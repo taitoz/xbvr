@@ -16,6 +16,12 @@ import (
 	"github.com/xbapps/xbvr/pkg/models"
 )
 
+var naHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
+const naUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
 type naSceneResponse struct {
 	Access         int    `json:"access"`
 	Title          string `json:"title"`
@@ -34,9 +40,9 @@ func fetchNaughtyAmericaScene(sceneID string) (naSceneResponse, bool) {
 	if err != nil {
 		return result, false
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", naUserAgent)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := naHTTPClient.Do(req)
 	if err != nil {
 		return result, false
 	}
@@ -98,20 +104,29 @@ func fetchNAVRPages(limitScraping bool) ([]naSceneAPI, error) {
 			break
 		}
 		u := fmt.Sprintf("https://api.naughtyapi.com/tools/scenes/scenes?page=%d", page)
-		resp, err := http.Get(u)
+		req, err := http.NewRequest("GET", u, nil)
+		if err != nil {
+			return all, err
+		}
+		req.Header.Set("User-Agent", naUserAgent)
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Referer", "https://www.naughtyamerica.com/")
+		log.Infof("NAVR: fetching API page %d", page)
+		resp, err := naHTTPClient.Do(req)
 		if err != nil {
 			return all, err
 		}
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			break
+			return all, fmt.Errorf("API returned %d", resp.StatusCode)
 		}
 
 		var r naScenesResponse
 		if err := json.Unmarshal(body, &r); err != nil {
-			break
+			return all, err
 		}
+		log.Infof("NAVR: API page %d returned %d scenes", page, len(r.Data))
 
 		for _, s := range r.Data {
 			if !hasVRTag(s.Tags) {
@@ -366,18 +381,59 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 		sceneCollector.Visit(singleSceneURL)
 	} else {
 		apiScenes, err := fetchNAVRPages(limitScraping)
-		if err != nil {
-			log.Errorf("Error fetching NaughtyAmerica scene list: %v", err)
-		}
-		for _, s := range apiScenes {
-			sceneURL := strings.Split(s.SceneURL, "?")[0]
-			if funk.ContainsString(knownScenes, sceneURL) {
-				continue
+		if err != nil || len(apiScenes) == 0 {
+			log.Errorf("NAVR API list failed or returned no scenes, falling back to HTML listing: %v", err)
+
+			siteCollector := createCollector("www.naughtyamerica.com")
+			maxPage := 0
+
+			// Parse pagination, including page numbers from hrefs
+			siteCollector.OnHTML(`ul.pagination`, func(e *colly.HTMLElement) {
+				if maxPage > 0 {
+					return
+				}
+				e.ForEach(`li a`, func(_ int, el *colly.HTMLElement) {
+					if n, err := strconv.Atoi(strings.TrimSpace(el.Text)); err == nil && n > maxPage {
+						maxPage = n
+					}
+					if m := regexp.MustCompile(`[?&]page=(\d+)`).FindStringSubmatch(el.Attr("href")); m != nil {
+						if n, err := strconv.Atoi(m[1]); err == nil && n > maxPage {
+							maxPage = n
+						}
+					}
+				})
+				if maxPage > 1 && !limitScraping {
+					for page := 2; page <= maxPage; page++ {
+						siteCollector.Visit("https://www.naughtyamerica.com/vr-porn?page=" + strconv.Itoa(page))
+					}
+				}
+			})
+
+			// Scene cards on list pages
+			siteCollector.OnHTML(`div.scene-item`, func(e *colly.HTMLElement) {
+				sceneLink := e.ChildAttr("a.contain-img.vr-scene-item", "href")
+				if sceneLink == "" {
+					return
+				}
+				sceneURL := e.Request.AbsoluteURL(sceneLink)
+				if funk.ContainsString(knownScenes, strings.Split(sceneURL, "?")[0]) {
+					return
+				}
+				sceneCollector.Visit(sceneURL)
+			})
+
+			siteCollector.Visit("https://www.naughtyamerica.com/vr-porn")
+		} else {
+			for _, s := range apiScenes {
+				sceneURL := strings.Split(s.SceneURL, "?")[0]
+				if funk.ContainsString(knownScenes, sceneURL) {
+					continue
+				}
+				apiJSON, _ := json.Marshal(s)
+				ctx := colly.NewContext()
+				ctx.Put("apiScene", string(apiJSON))
+				sceneCollector.Request("GET", sceneURL, nil, ctx, nil)
 			}
-			apiJSON, _ := json.Marshal(s)
-			ctx := colly.NewContext()
-			ctx.Put("apiScene", string(apiJSON))
-			sceneCollector.Request("GET", sceneURL, nil, ctx, nil)
 		}
 	}
 
