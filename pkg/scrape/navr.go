@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly/v2"
 	"github.com/mozillazg/go-slugify"
 	"github.com/thoas/go-funk"
@@ -243,25 +244,15 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 			_ = json.Unmarshal([]byte(apiJSON), &apiScene)
 		}
 
-		// Title: site title + scene title
-		siteTitle := strings.TrimSpace(e.ChildText(`.site-title`))
-		if siteTitle == "" {
-			siteTitle = strings.TrimSpace(e.ChildText(`a.site-title`))
-		}
-		if siteTitle == "" {
-			siteTitle = strings.TrimSpace(e.ChildText(`[class*="site-title"]`))
-		}
+		// Title: site title + scene title (scoped to .scene-info to avoid matching related-scenes cards)
+		info := e.DOM.Find(`.scene-info`).First()
+
+		siteTitle := strings.TrimSpace(info.Find(`a.site-title`).First().Text())
 		if siteTitle == "" {
 			siteTitle = apiScene.SiteName
 		}
 
-		sceneTitle := strings.TrimSpace(e.ChildText(`.scene-title`))
-		if sceneTitle == "" {
-			sceneTitle = strings.TrimSpace(e.ChildText(`h1.scene-title`))
-		}
-		if sceneTitle == "" {
-			sceneTitle = strings.TrimSpace(e.ChildText(`[class*="scene-title"]`))
-		}
+		sceneTitle := strings.TrimSpace(info.Find(`h1.scene-title`).First().Text())
 		if sceneTitle == "" {
 			sceneTitle = apiScene.Title
 		}
@@ -275,10 +266,7 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 		}
 
 		// Date
-		dateText := strings.TrimSpace(e.ChildText(`.entry-date .light-grey-text`))
-		if dateText == "" {
-			dateText = strings.TrimSpace(e.ChildText(`div.entry-date`))
-		}
+		dateText := strings.TrimSpace(info.Find(`.entry-date`).First().Text())
 		if dateText == "" && apiScene.PublishedDate != "" {
 			dateText = strings.Split(apiScene.PublishedDate, " ")[0]
 		}
@@ -287,17 +275,16 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 		}
 
 		// Duration
-		durText := strings.TrimSpace(e.ChildText(`.duration .light-grey-text`))
-		if durText == "" {
-			durText = strings.TrimSpace(e.ChildText(`div.duration`))
-		}
+		durText := strings.TrimSpace(info.Find(`.duration`).First().Text())
 		sc.Duration = parseNADuration(durText)
 		if sc.Duration == 0 && apiScene.Length > 0 {
 			sc.Duration = apiScene.Length / 60
 		}
 
 		// Description
-		sc.Synopsis = strings.TrimSpace(e.ChildText(`.video-description`))
+		synopsis := strings.TrimSpace(info.Find(`#video-description`).First().Text())
+		synopsis = strings.TrimPrefix(synopsis, "Synopsis:")
+		sc.Synopsis = strings.TrimSpace(synopsis)
 		if sc.Synopsis == "" {
 			sc.Synopsis = strings.TrimSpace(apiScene.Synopsis)
 		}
@@ -314,19 +301,10 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 			sc.Cast = append(sc.Cast, name)
 			sc.ActorDetails[name] = models.ActorDetails{Source: scraperID + " scrape", ProfileUrl: strings.SplitN(profileURL, "?", 2)[0]}
 		}
-		e.ForEach(`.performer-list li`, func(_ int, li *colly.HTMLElement) {
-			name := strings.TrimSpace(li.ChildText("a"))
-			if name == "" {
-				name = strings.TrimSpace(li.Text)
-			}
-			tryCast(name, e.Request.AbsoluteURL(li.ChildAttr("a", "href")))
+		info.Find(`.performer-list a`).Each(func(_ int, a *goquery.Selection) {
+			href, _ := a.Attr("href")
+			tryCast(a.Text(), e.Request.AbsoluteURL(href))
 		})
-		// Fallback to any anchor inside the performer list
-		if len(sc.Cast) == 0 {
-			e.ForEach(`.performer-list a`, func(_ int, el *colly.HTMLElement) {
-				tryCast(el.Text, e.Request.AbsoluteURL(el.Attr("href")))
-			})
-		}
 		// Fallback to API performers
 		if len(sc.Cast) == 0 {
 			for _, names := range apiScene.Performers {
@@ -339,8 +317,12 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 		// Tags from API
 		sc.Tags = apiScene.Tags
 
-		// Scene image from dl8-embed-container
-		imageURL := e.ChildAttr(`.dl8-embed-container dl8-video`, "poster")
+		// Scene image: the dl8-video poster attribute is set via JS at runtime and is not
+		// present in the static HTML, so use the static data-poster attribute instead.
+		imageURL := e.ChildAttr(`#scene-end-cta-wrapper`, "data-poster")
+		if imageURL == "" {
+			imageURL = e.ChildAttr(`.dl8-embed-container dl8-video`, "poster")
+		}
 		if imageURL == "" {
 			imageURL = e.ChildAttr(`.dl8-embed-container img`, "src")
 		}
@@ -348,6 +330,9 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 			if m := regexp.MustCompile(`url\(["']?(.*?)["']?\)`).FindStringSubmatch(e.ChildAttr(`.dl8-embed-container`, "style")); m != nil {
 				imageURL = m[1]
 			}
+		}
+		if strings.HasPrefix(imageURL, "//") {
+			imageURL = "https:" + imageURL
 		}
 
 		// Skip scene if we could not extract the minimum required data
