@@ -1,25 +1,26 @@
 <template>
   <div class="container is-fluid">
-    <div class="columns">
 
-      <div class="column is-one-fifth">
+    <!-- Filters sidebar overlay -->
+    <transition name="slide">
+      <div v-if="filtersOpen" class="filters-sidebar">
         <Filters/>
-
-        <div id="scrollButtons">
-          <a id="toTop">
-            <b-icon pack="mdi" icon="navigation" />
-          </a>
-          <a id="toggleInfiniteScroll" @click="toggleInfiniteScroll" :title="infiniteScrollEnabled ? 'Disable Auto Load More' : 'Enable Auto Load More'">
-            <b-icon pack="mdi" :icon="infiniteScrollEnabled ? 'reload' : 'pause'" />
-          </a>
-        </div>
       </div>
+    </transition>
+    <div v-if="filtersOpen" class="filters-backdrop" @click="closeFilters"/>
 
-      <div class="column is-four-fifths">
-        <List :infinite-scroll-enabled="infiniteScrollEnabled"/>
-      </div>
+    <!-- Full-width list -->
+    <List :infinite-scroll-enabled="infiniteScrollEnabled"/>
 
+    <div id="scrollButtons">
+      <a id="toTop">
+        <b-icon pack="mdi" icon="navigation" />
+      </a>
+      <a id="toggleInfiniteScroll" @click="toggleInfiniteScroll" :title="infiniteScrollEnabled ? 'Disable Auto Load More' : 'Enable Auto Load More'">
+        <b-icon pack="mdi" :icon="infiniteScrollEnabled ? 'reload' : 'pause'" />
+      </a>
     </div>
+
   </div>
 </template>
 
@@ -35,9 +36,17 @@ export default {
       infiniteScrollEnabled: true
     }
   },
+  computed: {
+    filtersOpen() {
+      return this.$store.state.overlay.filtersOpen
+    }
+  },
   methods: {
     toggleInfiniteScroll() {
       this.infiniteScrollEnabled = !this.infiniteScrollEnabled
+    },
+    closeFilters() {
+      this.$store.commit('overlay/closeFilters')
     }
   },
   mounted () {
@@ -73,6 +82,30 @@ export default {
 </script>
 
 <style scoped>
+  .filters-sidebar {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    width: 300px;
+    height: calc(100vh - 52px);
+    background: #fff;
+    z-index: 998;
+    overflow-y: auto;
+    padding: 1rem;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+  }
+  .filters-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 997;
+  }
+  .slide-enter-active, .slide-leave-active {
+    transition: transform 0.25s ease;
+  }
+  .slide-enter, .slide-leave-to {
+    transform: translateX(-100%);
+  }
   #scrollButtons {
     display: flex;
     justify-content: flex-start;

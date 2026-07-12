@@ -49,6 +49,7 @@ const state = {
     actor: null
   },
   changeDetailsTab: -1,
+  filtersOpen: false,
 }
 
 const mutations = {
@@ -162,6 +163,12 @@ const mutations = {
   },
   changeDetailsTab (state, payload) {
     state.changeDetailsTab = payload.tab
+  },
+  toggleFilters (state) {
+    state.filtersOpen = !state.filtersOpen
+  },
+  closeFilters (state) {
+    state.filtersOpen = false
   },
 }
 

@@ -1,21 +1,21 @@
 <template>
   <div class="container is-fluid">
-    <div class="columns">
 
-      <div class="column is-one-fifth">
-         <Filters/> 
-
-        <a id="toTop">
-          <b-icon pack="mdi" icon="navigation" />
-        </a>
+    <!-- Filters sidebar overlay -->
+    <transition name="slide">
+      <div v-if="filtersOpen" class="filters-sidebar">
+        <Filters/>
       </div>
+    </transition>
+    <div v-if="filtersOpen" class="filters-backdrop" @click="closeFilters"/>
 
-      <div class="column is-four-fifths">
-        <List/>
-      </div>
+    <!-- Full-width list -->
+    <List/>
 
-    </div>
-    
+    <a id="toTop">
+      <b-icon pack="mdi" icon="navigation" />
+    </a>
+
   </div>
 </template>
 
@@ -24,8 +24,18 @@ import Filters from './Filters'
 import List from './List'
 
 export default {
-  name: 'Actors',  
-  components: { Filters, List},
+  name: 'Actors',
+  components: { Filters, List },
+  computed: {
+    filtersOpen() {
+      return this.$store.state.overlay.filtersOpen
+    }
+  },
+  methods: {
+    closeFilters() {
+      this.$store.commit('overlay/closeFilters')
+    }
+  },
   mounted () {
     const toTop = document.getElementById('toTop')
     addEventListener('scroll', function () {
@@ -60,12 +70,34 @@ export default {
     this.$store.dispatch('actorList/load', { offset })
     next()
   },
-  computed: {
-  }
 }
 </script>
 
 <style scoped>
+  .filters-sidebar {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    width: 300px;
+    height: calc(100vh - 52px);
+    background: #fff;
+    z-index: 998;
+    overflow-y: auto;
+    padding: 1rem;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+  }
+  .filters-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 997;
+  }
+  .slide-enter-active, .slide-leave-active {
+    transition: transform 0.25s ease;
+  }
+  .slide-enter, .slide-leave-to {
+    transform: translateX(-100%);
+  }
   #toTop {
     display: none;
     position: fixed;
@@ -76,8 +108,8 @@ export default {
     padding: 15px;
     border-radius: 10px;
     font-size: 18px;
+    z-index: 1000;
   }
-
   #toTop:hover {
     background-color: #BDBDBD;
   }
