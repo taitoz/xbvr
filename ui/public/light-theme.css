@@ -977,3 +977,8 @@ fieldset[disabled] .button.is-link {
 	height: 170px;
 	padding-bottom: 0.2em;
 }
+
+.filters-sidebar {
+	background: #ffffff !important;
+	border-right: 1px solid #dbdbdb;
+}

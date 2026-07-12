@@ -1,8 +1,10 @@
 <template>
   <b-navbar :fixed-top="true" type="is-light">
     <template slot="brand">
-      <a v-if="showFiltersBurger" class="filters-burger" @click="$store.commit('overlay/toggleFilters')" :class="{'is-active': filtersOpen}" :title="filtersOpen ? 'Hide filters' : 'Show filters'">
-        <span></span><span></span><span></span>
+      <a v-if="showFiltersBurger" role="button" class="navbar-burger burger" @click="$store.commit('overlay/toggleFilters')" :class="{'is-active': filtersOpen}" :title="filtersOpen ? 'Hide filters' : 'Show filters'" aria-label="filters menu">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
       </a>
       <b-navbar-item>
         <h1 class="title">XBVR <small>{{currentVersion}}</small></h1>
@@ -98,35 +100,6 @@ export default {
   h1 {
     display: flex;
     align-items: center;
-  }
-
-  .filters-burger {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    width: 3.25rem;
-    height: 3.25rem;
-    gap: 5px;
-    flex-shrink: 0;
-  }
-  .filters-burger span {
-    display: block;
-    height: 2px;
-    width: 22px;
-    background-color: #4a4a4a;
-    transition: all 0.3s;
-    transform-origin: center;
-  }
-  .filters-burger.is-active span:nth-child(1) {
-    transform: translateY(7px) rotate(45deg);
-  }
-  .filters-burger.is-active span:nth-child(2) {
-    opacity: 0;
-  }
-  .filters-burger.is-active span:nth-child(3) {
-    transform: translateY(-7px) rotate(-45deg);
   }
 
   h1 small {

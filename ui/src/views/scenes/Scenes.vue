@@ -88,7 +88,6 @@ export default {
     left: 0;
     width: 300px;
     height: calc(100vh - 52px);
-    background: #fff;
     z-index: 998;
     overflow-y: auto;
     padding: 1rem;
