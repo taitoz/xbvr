@@ -334,31 +334,78 @@ var naSiteNameToCode = map[string]string{
 	"Super Sluts":               "susl",
 }
 
+// naCommonMaleFirstNames is a list of male performer first names frequently used
+// in NaughtyAmerica scenes. Used as a fallback when the API omits male performers.
+var naCommonMaleFirstNames = []string{
+	"chad", "evan", "tyler", "tony", "johnny", "seth", "mike", "ryan",
+	"danny", "scott", "charles", "bambino", "ricky", "justin", "alex",
+}
+
+// naProbeURL returns url if it responds with HTTP 200, otherwise "".
+func naProbeURL(url string) string {
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", naUserAgent)
+	resp, err := naHTTPClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		return url
+	}
+	return ""
+}
+
 // getNAVRImageURLFromPerformers builds a naughtycdn cover image URL using the
 // site code and the first names of all performers (old scenes lack promo/trailer data).
+// If the URL built from API performers returns 404 (e.g. male list is empty),
+// it probes common male first name suffixes to find the real slug.
 func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
 	siteCode, ok := naSiteNameToCode[strings.TrimSpace(apiScene.SiteName)]
 	if !ok {
 		return ""
 	}
-	// Collect first names of all performers in deterministic order (female first, then male).
-	var firstNames []string
-	for _, role := range []string{"female", "male"} {
-		for _, name := range apiScene.Performers[role] {
-			name = strings.TrimSpace(name)
-			if name == "" {
-				continue
+	// Collect first names in deterministic order (female first, then male).
+	firstNames := func(roles ...string) []string {
+		var names []string
+		for _, role := range roles {
+			for _, name := range apiScene.Performers[role] {
+				name = strings.TrimSpace(name)
+				if name == "" {
+					continue
+				}
+				parts := strings.SplitN(name, " ", 2)
+				names = append(names, strings.ToLower(parts[0]))
 			}
-			// Take only the first name (before first space).
-			parts := strings.SplitN(name, " ", 2)
-			firstNames = append(firstNames, strings.ToLower(parts[0]))
 		}
+		return names
 	}
-	if len(firstNames) == 0 {
+
+	all := firstNames("female", "male")
+	if len(all) == 0 {
 		return ""
 	}
-	slug := strings.Join(firstNames, "")
-	return fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, slug)
+	slug := strings.Join(all, "")
+	candidate := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, slug)
+	if u := naProbeURL(candidate); u != "" {
+		return u
+	}
+
+	// If only female names were known (male list empty in API), try appending common male names.
+	femaleNames := firstNames("female")
+	if len(femaleNames) > 0 && len(femaleNames) == len(all) {
+		femaleSlug := strings.Join(femaleNames, "")
+		for _, male := range naCommonMaleFirstNames {
+			u := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, femaleSlug+male)
+			if hit := naProbeURL(u); hit != "" {
+				return hit
+			}
+		}
+	}
+	return ""
 }
 
 func getNABasePrefixSlug(imageURL string) (string, string) {
