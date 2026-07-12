@@ -408,14 +408,16 @@ func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
 	}
 
 	naProbeWithSuffixes := func(slug string) string {
-		base := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, slug)
-		if u := naProbeURL(base); u != "" {
-			return u
-		}
-		for i := 2; i <= 9; i++ {
-			u := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s%d/scene/horizontal/1279x852c.jpg", siteCode, slug, i)
-			if hit := naProbeURL(u); hit != "" {
-				return hit
+		for _, variant := range []string{slug, slug + "rem"} {
+			base := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, variant)
+			if u := naProbeURL(base); u != "" {
+				return u
+			}
+			for i := 2; i <= 9; i++ {
+				u := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s%d/scene/horizontal/1279x852c.jpg", siteCode, variant, i)
+				if hit := naProbeURL(u); hit != "" {
+					return hit
+				}
 			}
 		}
 		return ""
@@ -425,9 +427,20 @@ func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
 	if len(all) == 0 {
 		return ""
 	}
-	slug := strings.Join(all, "")
-	if u := naProbeWithSuffixes(slug); u != "" {
-		return u
+
+	// Try all permutations of names (up to 4 performers = 24 combos).
+	// This handles cases where the naughtycdn slug uses a different order than the API.
+	if len(all) <= 4 {
+		for _, perm := range naPermutations(all) {
+			if hit := naProbeWithSuffixes(strings.Join(perm, "")); hit != "" {
+				return hit
+			}
+		}
+	} else {
+		// Too many performers for full permutation; just try the API order.
+		if u := naProbeWithSuffixes(strings.Join(all, "")); u != "" {
+			return u
+		}
 	}
 
 	// If only female names were known (male list empty in API), try appending common male names.
@@ -441,6 +454,23 @@ func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
 		}
 	}
 	return ""
+}
+
+// naPermutations returns all permutations of a string slice.
+func naPermutations(names []string) [][]string {
+	if len(names) <= 1 {
+		return [][]string{names}
+	}
+	var result [][]string
+	for i, name := range names {
+		rest := make([]string, 0, len(names)-1)
+		rest = append(rest, names[:i]...)
+		rest = append(rest, names[i+1:]...)
+		for _, perm := range naPermutations(rest) {
+			result = append(result, append([]string{name}, perm...))
+		}
+	}
+	return result
 }
 
 func getNABasePrefixSlug(imageURL string) (string, string) {
