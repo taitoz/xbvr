@@ -80,6 +80,35 @@ type naScenesResponse struct {
 // the API returning an empty array for the same field.
 type naFlexibleStringMap map[string]string
 
+// naFlexiblePerformers unmarshals performers which can be either
+// map[string]string (single performer per role) or map[string][]string
+// (multiple performers per role).
+type naFlexiblePerformers map[string][]string
+
+func (p *naFlexiblePerformers) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" || (len(data) > 0 && data[0] == '[') {
+		*p = nil
+		return nil
+	}
+	// Try map[string][]string first.
+	var multi map[string][]string
+	if err := json.Unmarshal(data, &multi); err == nil {
+		*p = multi
+		return nil
+	}
+	// Fall back to map[string]string (single performer per role).
+	var single map[string]string
+	if err := json.Unmarshal(data, &single); err != nil {
+		return err
+	}
+	result := make(naFlexiblePerformers, len(single))
+	for role, name := range single {
+		result[role] = []string{name}
+	}
+	*p = result
+	return nil
+}
+
 func (m *naFlexibleStringMap) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 || string(data) == "null" || (len(data) > 0 && data[0] == '[') {
 		*m = nil
@@ -102,7 +131,7 @@ type naSceneAPI struct {
 	SiteName       string              `json:"site_name"`
 	Synopsis       string              `json:"synopsis"`
 	Tags           []string            `json:"tags"`
-	Performers     map[string][]string `json:"performers"`
+	Performers     naFlexiblePerformers `json:"performers"`
 	PromoVideoData naFlexibleStringMap `json:"promo_video_data"`
 	Trailers       naFlexibleStringMap `json:"trailers"`
 }
