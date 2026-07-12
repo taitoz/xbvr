@@ -123,17 +123,17 @@ func (m *naFlexibleStringMap) UnmarshalJSON(data []byte) error {
 }
 
 type naSceneAPI struct {
-	ID             int                 `json:"id"`
-	Title          string              `json:"title"`
-	Length         int                 `json:"length"`
-	PublishedDate  string              `json:"published_date"`
-	SceneURL       string              `json:"scene_url"`
-	SiteName       string              `json:"site_name"`
-	Synopsis       string              `json:"synopsis"`
-	Tags           []string            `json:"tags"`
+	ID             int                  `json:"id"`
+	Title          string               `json:"title"`
+	Length         int                  `json:"length"`
+	PublishedDate  string               `json:"published_date"`
+	SceneURL       string               `json:"scene_url"`
+	SiteName       string               `json:"site_name"`
+	Synopsis       string               `json:"synopsis"`
+	Tags           []string             `json:"tags"`
 	Performers     naFlexiblePerformers `json:"performers"`
-	PromoVideoData naFlexibleStringMap `json:"promo_video_data"`
-	Trailers       naFlexibleStringMap `json:"trailers"`
+	PromoVideoData naFlexibleStringMap  `json:"promo_video_data"`
+	Trailers       naFlexibleStringMap  `json:"trailers"`
 }
 
 func hasVRTag(tags []string) bool {
@@ -306,6 +306,61 @@ func parseNADuration(s string) int {
 	return total
 }
 
+// naSiteNameToCode maps NaughtyAmerica site names to their naughtycdn path codes.
+var naSiteNameToCode = map[string]string{
+	"After School":              "afsc",
+	"American Daydreams":        "add",
+	"Classroom":                 "clsr",
+	"Dorm Room":                 "drrm",
+	"Dressing Room":             "tdrm",
+	"Gym":                       "tgym",
+	"I Have a Wife":             "ihw",
+	"My First Sex Teacher":      "mfst",
+	"My Friend's Hot Girl":      "mfhg",
+	"My Friend's Hot Mom":       "mfhm",
+	"My Girlfriend":             "mygf",
+	"My Wife's Hot Friend":      "mwhf",
+	"Naughty America":           "nam",
+	"Naughty Office":            "no",
+	"Naughty Weddings":          "naw",
+	"Office":                    "toff",
+	"PSE Porn Star Experience":  "psex",
+	"Party Girls":               "ptgs",
+	"Perfect Fucking Strangers": "napfs",
+	"Real Girls Now":            "nargn",
+	"Single Moms":               "sngl",
+	"Spa":                       "tspa",
+	"Summer Vacation":           "sumv",
+	"Super Sluts":               "susl",
+}
+
+// getNAVRImageURLFromPerformers builds a naughtycdn cover image URL using the
+// site code and the first names of all performers (old scenes lack promo/trailer data).
+func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
+	siteCode, ok := naSiteNameToCode[strings.TrimSpace(apiScene.SiteName)]
+	if !ok {
+		return ""
+	}
+	// Collect first names of all performers in deterministic order (female first, then male).
+	var firstNames []string
+	for _, role := range []string{"female", "male"} {
+		for _, name := range apiScene.Performers[role] {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			// Take only the first name (before first space).
+			parts := strings.SplitN(name, " ", 2)
+			firstNames = append(firstNames, strings.ToLower(parts[0]))
+		}
+	}
+	if len(firstNames) == 0 {
+		return ""
+	}
+	slug := strings.Join(firstNames, "")
+	return fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, slug)
+}
+
 func getNABasePrefixSlug(imageURL string) (string, string) {
 	parts := strings.Split(imageURL, "/scenes/")
 	if len(parts) < 2 {
@@ -373,7 +428,8 @@ func getNAVRImageURL(apiScene naSceneAPI) string {
 		}
 	}
 
-	return ""
+	// Fallback: derive URL from site name + performers' first names (for old scenes without promo/trailer).
+	return getNAVRImageURLFromPerformers(apiScene)
 }
 
 // processNAVRScene builds and emits a ScrapedScene directly from the API data,
@@ -430,22 +486,21 @@ func processNAVRScene(apiScene naSceneAPI, out chan<- models.ScrapedScene, scrap
 
 	imageURL := getNAVRImageURL(apiScene)
 	if imageURL == "" {
-		log.Warnf("NAVR: could not derive cover image for scene %s", sc.HomepageURL)
-		return
-	}
-	if strings.HasPrefix(imageURL, "//") {
-		imageURL = "https:" + imageURL
-	}
+		log.Warnf("NAVR: could not derive cover image for scene %s, saving without cover", sc.HomepageURL)
+	} else {
+		if strings.HasPrefix(imageURL, "//") {
+			imageURL = "https:" + imageURL
+		}
+		sc.Covers, sc.Gallery = buildNACovers(imageURL)
 
-	sc.Covers, sc.Gallery = buildNACovers(imageURL)
-
-	prefix, slug := getNABasePrefixSlug(imageURL)
-	if prefix != "" && slug != "" {
-		baseName := prefix + slug
-		defaultBaseName := "nam" + slug
-		filenames := []string{"_180x180_3dh.mp4", "_smartphonevr60.mp4", "_smartphonevr30.mp4", "_vrdesktopsd.mp4", "_vrdesktophd.mp4", "_180_sbs.mp4", "_6kvr264.mp4", "_6kvr265.mp4", "_8kvr265.mp4"}
-		for i := range filenames {
-			sc.Filenames = append(sc.Filenames, baseName+filenames[i], defaultBaseName+filenames[i])
+		prefix, slug := getNABasePrefixSlug(imageURL)
+		if prefix != "" && slug != "" {
+			baseName := prefix + slug
+			defaultBaseName := "nam" + slug
+			filenames := []string{"_180x180_3dh.mp4", "_smartphonevr60.mp4", "_smartphonevr30.mp4", "_vrdesktopsd.mp4", "_vrdesktophd.mp4", "_180_sbs.mp4", "_6kvr264.mp4", "_6kvr265.mp4", "_8kvr265.mp4"}
+			for i := range filenames {
+				sc.Filenames = append(sc.Filenames, baseName+filenames[i], defaultBaseName+filenames[i])
+			}
 		}
 	}
 
