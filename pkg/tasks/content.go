@@ -318,7 +318,7 @@ func Scrape(toScrape string, singleSceneURL string, singeScrapeAdditionalInfo st
 
 		var knownScenes []string
 		for i := range scenes {
-			if !scenes[i].NeedsUpdate {
+			if !scenes[i].NeedsUpdate && scenes[i].CoverURL != "" {
 				knownScenes = append(knownScenes, scenes[i].SceneURL)
 			}
 		}

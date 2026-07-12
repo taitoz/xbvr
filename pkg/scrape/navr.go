@@ -407,13 +407,26 @@ func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
 		return names
 	}
 
+	naProbeWithSuffixes := func(slug string) string {
+		base := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, slug)
+		if u := naProbeURL(base); u != "" {
+			return u
+		}
+		for i := 2; i <= 9; i++ {
+			u := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s%d/scene/horizontal/1279x852c.jpg", siteCode, slug, i)
+			if hit := naProbeURL(u); hit != "" {
+				return hit
+			}
+		}
+		return ""
+	}
+
 	all := firstNames("female", "male")
 	if len(all) == 0 {
 		return ""
 	}
 	slug := strings.Join(all, "")
-	candidate := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, slug)
-	if u := naProbeURL(candidate); u != "" {
+	if u := naProbeWithSuffixes(slug); u != "" {
 		return u
 	}
 
@@ -422,8 +435,7 @@ func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
 	if len(femaleNames) > 0 && len(femaleNames) == len(all) {
 		femaleSlug := strings.Join(femaleNames, "")
 		for _, male := range naCommonMaleFirstNames {
-			u := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, femaleSlug+male)
-			if hit := naProbeURL(u); hit != "" {
+			if hit := naProbeWithSuffixes(femaleSlug + male); hit != "" {
 				return hit
 			}
 		}
