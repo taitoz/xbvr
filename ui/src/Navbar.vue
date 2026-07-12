@@ -1,7 +1,7 @@
 <template>
   <b-navbar :fixed-top="true" type="is-light">
     <template slot="brand">
-      <a v-if="showFiltersBurger" role="button" class="navbar-burger burger" @click="$store.commit('overlay/toggleFilters')" :class="{'is-active': filtersOpen}" :title="filtersOpen ? 'Hide filters' : 'Show filters'" aria-label="filters menu">
+      <a v-if="showFiltersBurger" role="button" class="navbar-burger burger filters-burger" @click="$store.commit('overlay/toggleFilters')" :class="{'is-active': filtersOpen}" :title="filtersOpen ? 'Hide filters' : 'Show filters'" aria-label="filters menu">
         <span aria-hidden="true"></span>
         <span aria-hidden="true"></span>
         <span aria-hidden="true"></span>
@@ -97,6 +97,14 @@ export default {
 </script>
 
 <style scoped>
+  /* Force filters burger visible at all screen sizes, left-aligned */
+  .filters-burger {
+    display: flex !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    order: -1;
+  }
+
   h1 {
     display: flex;
     align-items: center;
