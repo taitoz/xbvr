@@ -212,6 +212,38 @@ func fetchNAVRPages(limitScraping bool) ([]naSceneAPI, error) {
 	return all, nil
 }
 
+// fetchNAVRSceneByID fetches a single scene from the API using the scene's
+// numeric ID (the trailing number in the scene URL slug).
+func fetchNAVRSceneByID(id string) (naSceneAPI, bool) {
+	var r naScenesResponse
+	u := fmt.Sprintf("https://api.naughtyapi.com/tools/scenes/scenes?id=%s", id)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return naSceneAPI{}, false
+	}
+	req.Header.Set("User-Agent", naUserAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Referer", "https://www.naughtyamerica.com/")
+	resp, err := naHTTPClient.Do(req)
+	if err != nil {
+		return naSceneAPI{}, false
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return naSceneAPI{}, false
+	}
+	if err := json.Unmarshal(body, &r); err != nil {
+		return naSceneAPI{}, false
+	}
+	for _, s := range r.Data {
+		if strconv.Itoa(s.ID) == id {
+			return s, true
+		}
+	}
+	return naSceneAPI{}, false
+}
+
 func parseNADate(s string) string {
 	s = strings.TrimSpace(s)
 	for _, layout := range []string{"Jan 2, 2006", "January 2, 2006", "01/02/2006", "01-02-2006", "2006-01-02"} {
@@ -545,7 +577,39 @@ func NaughtyAmericaVR(wg *models.ScrapeWG, updateSite bool, knownScenes []string
 	})
 
 	if singleSceneURL != "" {
-		sceneCollector.Visit(singleSceneURL)
+		// Fetch scene data from the API to bypass WAF on the HTML page.
+		singleSiteID := getNaughtyAmericaSceneID(strings.Split(singleSceneURL, "?")[0])
+		found := false
+		// Try direct lookup by scene ID first (scenes API supports ?id= filter).
+		if apiScene, ok := fetchNAVRSceneByID(singleSiteID); ok {
+			processNAVRScene(apiScene, out, scraperID, siteID)
+			found = true
+		}
+		if !found {
+			// Fall back: walk pages from the end (newest first) to find the scene.
+			first, err := fetchNAVRPage(1)
+			if err == nil && first.LastPage > 0 {
+				for page := first.LastPage; page >= 1; page-- {
+					r, err := fetchNAVRPage(page)
+					if err != nil || len(r.Data) == 0 {
+						continue
+					}
+					for _, s := range r.Data {
+						if getNaughtyAmericaSceneID(strings.Split(s.SceneURL, "?")[0]) == singleSiteID {
+							processNAVRScene(s, out, scraperID, siteID)
+							found = true
+							break
+						}
+					}
+					if found {
+						break
+					}
+				}
+			}
+		}
+		if !found {
+			log.Warnf("NAVR: scene %s not found in API", singleSceneURL)
+		}
 	} else {
 		apiScenes, err := fetchNAVRPages(limitScraping)
 		knownCount := 0
