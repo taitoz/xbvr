@@ -1,13 +1,16 @@
 package scrape
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -19,6 +22,11 @@ import (
 
 var naHTTPClient = &http.Client{
 	Timeout: 30 * time.Second,
+}
+
+// naProbeClient is a separate client with a short timeout used only for HEAD probes.
+var naProbeClient = &http.Client{
+	Timeout: 5 * time.Second,
 }
 
 const naUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -355,6 +363,7 @@ var naSiteNameToCode = map[string]string{
 	"T&A":                          "tsas",
 	"Thundercock":                  "nathck",
 	"Tonight's Girlfriend":         "natngf",
+	"True Sex Stories":             "tsxs",
 }
 
 // naCommonMaleFirstNames is a list of male performer first names frequently used
@@ -366,12 +375,17 @@ var naCommonMaleFirstNames = []string{
 
 // naProbeURL returns url if it responds with HTTP 200, otherwise "".
 func naProbeURL(url string) string {
-	req, err := http.NewRequest("HEAD", url, nil)
+	return naProbeURLCtx(context.Background(), url)
+}
+
+// naProbeURLCtx is like naProbeURL but respects a context for cancellation.
+func naProbeURLCtx(ctx context.Context, url string) string {
+	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
 	if err != nil {
 		return ""
 	}
 	req.Header.Set("User-Agent", naUserAgent)
-	resp, err := naHTTPClient.Do(req)
+	resp, err := naProbeClient.Do(req)
 	if err != nil {
 		return ""
 	}
@@ -382,78 +396,129 @@ func naProbeURL(url string) string {
 	return ""
 }
 
+// naProbeFirst fires all urls as parallel HEAD requests and returns the first
+// one that responds with HTTP 200, or "" if none do.
+func naProbeFirst(urls []string) string {
+	if len(urls) == 0 {
+		return ""
+	}
+	if len(urls) == 1 {
+		return naProbeURL(urls[0])
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	type result struct{ url string }
+	ch := make(chan result, len(urls))
+	var wg sync.WaitGroup
+	for _, u := range urls {
+		wg.Add(1)
+		go func(u string) {
+			defer wg.Done()
+			if hit := naProbeURLCtx(ctx, u); hit != "" {
+				select {
+				case ch <- result{hit}:
+					cancel()
+				default:
+				}
+			}
+		}(u)
+	}
+	go func() { wg.Wait(); close(ch) }()
+	if r, ok := <-ch; ok {
+		return r.url
+	}
+	return ""
+}
+
+// naCDNSlugURL builds a naughtycdn cover image URL from site code and slug.
+func naCDNSlugURL(siteCode, slug string) string {
+	return fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, slug)
+}
+
+// naSlugsWithSuffixes expands a base slug into all suffix variants:
+// plain, rem, 2-9, rem2-rem9.
+func naSlugsWithSuffixes(slug string) []string {
+	var out []string
+	for _, v := range []string{slug, slug + "rem"} {
+		out = append(out, v)
+		for i := 2; i <= 9; i++ {
+			out = append(out, fmt.Sprintf("%s%d", v, i))
+		}
+	}
+	return out
+}
+
+// naFirstNames extracts lower-cased first names of performers in the given roles.
+func naFirstNames(performers naFlexiblePerformers, roles ...string) []string {
+	var names []string
+	for _, role := range roles {
+		for _, name := range performers[role] {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			names = append(names, strings.ToLower(strings.SplitN(name, " ", 2)[0]))
+		}
+	}
+	return names
+}
+
 // getNAVRImageURLFromPerformers builds a naughtycdn cover image URL using the
 // site code and the first names of all performers (old scenes lack promo/trailer data).
-// If the URL built from API performers returns 404 (e.g. male list is empty),
-// it probes common male first name suffixes to find the real slug.
 func getNAVRImageURLFromPerformers(apiScene naSceneAPI) string {
 	siteCode, ok := naSiteNameToCode[strings.TrimSpace(apiScene.SiteName)]
 	if !ok {
 		return ""
 	}
-	// Collect first names in deterministic order (female first, then male).
-	firstNames := func(roles ...string) []string {
-		var names []string
-		for _, role := range roles {
-			for _, name := range apiScene.Performers[role] {
-				name = strings.TrimSpace(name)
-				if name == "" {
-					continue
-				}
-				parts := strings.SplitN(name, " ", 2)
-				names = append(names, strings.ToLower(parts[0]))
-			}
-		}
-		return names
-	}
 
-	naProbeWithSuffixes := func(slug string) string {
-		for _, variant := range []string{slug, slug + "rem"} {
-			base := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s/scene/horizontal/1279x852c.jpg", siteCode, variant)
-			if u := naProbeURL(base); u != "" {
-				return u
-			}
-			for i := 2; i <= 9; i++ {
-				u := fmt.Sprintf("https://images1.naughtycdn.com/cms/nacmscontent/v1/scenes/%s/%s%d/scene/horizontal/1279x852c.jpg", siteCode, variant, i)
-				if hit := naProbeURL(u); hit != "" {
-					return hit
-				}
-			}
-		}
-		return ""
-	}
-
-	all := firstNames("female", "male")
+	femaleNames := naFirstNames(apiScene.Performers, "female")
+	maleNames := naFirstNames(apiScene.Performers, "male")
+	all := append(femaleNames, maleNames...)
 	if len(all) == 0 {
 		return ""
 	}
 
-	// Try all permutations of names (up to 4 performers = 24 combos).
-	// This handles cases where the naughtycdn slug uses a different order than the API.
-	if len(all) <= 4 {
-		for _, perm := range naPermutations(all) {
-			if hit := naProbeWithSuffixes(strings.Join(perm, "")); hit != "" {
-				return hit
+	// Build candidate slugs to probe, starting with the most common pattern:
+	// alphabetically sorted female names + alphabetically sorted male names.
+	sortedFemale := append([]string(nil), femaleNames...)
+	sort.Strings(sortedFemale)
+	sortedMale := append([]string(nil), maleNames...)
+	sort.Strings(sortedMale)
+	sortedSlug := strings.Join(append(sortedFemale, sortedMale...), "")
+
+	var candidates []string
+	seen := make(map[string]bool)
+	addSlug := func(slug string) {
+		for _, s := range naSlugsWithSuffixes(slug) {
+			if !seen[s] {
+				seen[s] = true
+				candidates = append(candidates, naCDNSlugURL(siteCode, s))
 			}
-		}
-	} else {
-		// Too many performers for full permutation; just try the API order.
-		if u := naProbeWithSuffixes(strings.Join(all, "")); u != "" {
-			return u
 		}
 	}
 
-	// If only female names were known (male list empty in API), try appending common male names.
-	femaleNames := firstNames("female")
-	if len(femaleNames) > 0 && len(femaleNames) == len(all) {
-		femaleSlug := strings.Join(femaleNames, "")
+	// 1. Sorted (most common).
+	addSlug(sortedSlug)
+
+	// 2. All permutations for small casts (≤4 performers).
+	if len(all) <= 4 {
+		for _, perm := range naPermutations(all) {
+			addSlug(strings.Join(perm, ""))
+		}
+	} else {
+		// Large cast: also try API order as a fallback.
+		addSlug(strings.Join(all, ""))
+	}
+
+	// 3. If male list is empty in the API, append common male first names to sorted female slug.
+	if len(maleNames) == 0 && len(femaleNames) > 0 {
 		for _, male := range naCommonMaleFirstNames {
-			if hit := naProbeWithSuffixes(femaleSlug + male); hit != "" {
-				return hit
-			}
+			addSlug(strings.Join(sortedFemale, "") + male)
 		}
 	}
-	return ""
+
+	return naProbeFirst(candidates)
 }
 
 // naPermutations returns all permutations of a string slice.
@@ -595,6 +660,9 @@ func processNAVRScene(apiScene naSceneAPI, out chan<- models.ScrapedScene, scrap
 	}
 
 	sc.Tags = apiScene.Tags
+
+	sc.Covers = []string{}
+	sc.Gallery = []string{}
 
 	imageURL := getNAVRImageURL(apiScene)
 	if imageURL == "" {

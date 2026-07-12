@@ -583,14 +583,17 @@ func (o *Scene) PopulateSceneFieldsFromExternal(db *gorm.DB, ext ScrapedScene) {
 		}
 	}
 
-	// Store filenames as JSON
+	// Store filenames as JSON (initialize as empty slice so JSON is always [] not null)
+	if ext.Filenames == nil {
+		ext.Filenames = []string{}
+	}
 	pfTxt, err := json.Marshal(ext.Filenames)
 	if err == nil {
 		o.FilenamesArr = string(pfTxt)
 	}
 
-	// Store images as JSON
-	var images []Image
+	// Store images as JSON (initialize as empty slice so JSON is always [] not null)
+	images := []Image{}
 
 	for i := range ext.Covers {
 		if ext.Covers[i] != "" {
