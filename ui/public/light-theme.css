@@ -85,7 +85,6 @@ a:active {
 	background-color: #f4f4f5;
 }
 .control.pagination-input .input {
-	background-color: #303030;
 	color: #000;
 	font-size: unset;
 }
@@ -158,7 +157,7 @@ a:active {
 	color: #f14668;
 }
 .button.is-danger.is-outlined.is-hovered {
-	color: white;
+	color: #f14668;
 }
 .button.is-primary.is-outlined {
 	background-color: transparent;
@@ -567,9 +566,9 @@ fieldset[disabled] .button {
 }
 .button.is-light.is-hovered,
 .button.is-light:hover {
-	background-color: #000000;
+	background-color: #d0d0d1;
 	border-color: transparent;
-	color: rgba(255, 255, 255, .7);
+	color: #000000;
 }
 .select select option {
 	color: #000000;
@@ -617,6 +616,7 @@ fieldset[disabled] .button {
 .button.is-primary {
 	background-color: #d0d0d1;
 	border-color: transparent;
+	color: #000000;
 }
 .button.is-primary.is-hovered,
 .button.is-primary:hover {
@@ -668,8 +668,8 @@ fieldset[disabled] .button {
 	color: #000000
 }
 .menu-list a.is-active {
-	background-color: #000000;
-	color: #fff
+	background-color: #d0d0d1;
+	color: #000000
 }
 .menu-list li ul {
 	border-left: 1px solid #000000;
@@ -799,7 +799,7 @@ fieldset[disabled] .button {
 	min-width: 50px;
 }
 .is-large.modal-close:hover {
-	color: white;
+	color: #000000;
 	background-color: #ff5800;
 }
 .modal-close {

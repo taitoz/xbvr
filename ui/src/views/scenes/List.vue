@@ -2,12 +2,12 @@
   <div ref="scrollContainer">
     <b-loading :is-full-page="true" :active.sync="isLoading"></b-loading>
 
-    <div class="columns is-multiline is-full">
-      <div class="column">
+    <div class="columns is-multiline is-full is-centered">
+      <div class="column is-narrow">
         <strong>{{total}} results</strong>
       </div>
-      <div class="column">
-        <div class="columns is-gapless">
+      <div class="column has-text-centered">
+        <div class="columns is-gapless is-centered">
           <b-radio-button v-model="dlState" native-value="any" size="is-small">
             {{$t("Any")}} ({{counts.any}})
           </b-radio-button>
