@@ -26,34 +26,12 @@
         </div>
         <span v-show="show_scene_id==='never show, just need the computed show_scene_id to trigger '">{{show_scene_id}}</span>
       </div>
-      <div class="column">
-        <div class="is-pulled-right">
-          <b-field>
-            <span class="list-header-label">{{$t('Card size')}}</span>
-            <b-radio-button v-model="cardSize" native-value="1" size="is-small">
-              XS
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="2" size="is-small">
-              S
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="3" size="is-small">
-              M
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="4" size="is-small">
-              L
-            </b-radio-button>
-          </b-field>
-        </div>
-      </div>
     </div>
 
     <div class="is-clearfix"></div>
 
-    <div class="columns is-multiline">
-      <div :class="['column', 'is-multiline', cardSizeClass]"
-           v-for="item in items" :key="item.id">
-        <SceneCard :item="item"/>
-      </div>
+    <div class="grid-scenes">
+      <SceneCard v-for="item in items" :key="item.id" :item="item"/>
     </div>
 
     <div class="column is-full" v-if="isLoadingMore">
@@ -86,28 +64,6 @@ export default {
     }
   },
   computed: {
-    cardSize: {
-      get () {
-        return this.$store.state.sceneList.filters.cardSize
-      },
-      set (value) {
-        this.$store.state.sceneList.filters.cardSize = value
-      }
-    },
-    cardSizeClass () {
-      switch (this.$store.state.sceneList.filters.cardSize) {
-        case '1':
-          return 'is-2'
-        case '2':
-          return 'is-one-fifth'
-        case '3':
-          return 'is-one-quarter'
-        case '4':
-          return 'is-one-third'
-        default:
-          return 'is-one-fifth'
-      }
-    },
     dlState: {
       get () {
         return this.$store.state.sceneList.filters.dlState
@@ -227,5 +183,11 @@ export default {
 <style scoped>
   .list-header-label {
     padding-right: 1em;
+  }
+  .grid-scenes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 360px);
+    gap: 1rem;
+    justify-content: center;
   }
 </style>

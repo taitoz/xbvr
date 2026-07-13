@@ -4,6 +4,7 @@
 }
 
 body {
+	font-family: Inter, sans-serif;
 	font-weight: 500 !important;
 	line-height: 1.3 !important;
 	color: #b5b5b5;
@@ -954,7 +955,20 @@ fieldset[disabled] .button.is-link {
 }
 
 .column {
-	padding: .9rem;
+	padding: .5rem;
+}
+
+.columns:not(:last-child) {
+	margin-bottom: 0;
+}
+
+.columns.is-gapless:not(:last-child) {
+	margin-bottom: .5rem;
+}
+
+.navbar-item,
+.navbar-link {
+	padding: 0;
 }
 
 .tag:not(body) {

@@ -2,7 +2,7 @@
   <div class="card is-shadowless">
     <div class="card-image">
       <div class="bbox"
-           v-bind:style='{backgroundImage: `url("${getImageURL(item.cover_url)}")`, backgroundSize: this.sceneCardScale, backgroundPosition: "center", backgroundRepeat: "no-repeat", opacity:item.is_available ? 1.0 : this.isAvailOpactiy, aspectRatio: this.sceneCardAspectRatio}'
+           v-bind:style='{backgroundImage: `url("${getImageURL(item.cover_url)}")`, backgroundSize: this.sceneCardScale, backgroundPosition: "center", backgroundRepeat: "no-repeat", opacity:item.is_available ? 1.0 : this.isAvailOpactiy, aspectRatio: this.sceneCardAspectRatio, width: "360px"}'
            @click="showDetails(item)"
            @mouseover="preview = true"
            @mouseleave="preview = false">
@@ -263,7 +263,6 @@ export default {
   }
 
   .bbox {
-    flex: 1 0 calc(25%);
     background: #f0f0f0;
     display: flex;
     align-items: center;
@@ -271,6 +270,8 @@ export default {
     overflow: hidden;
     padding: 0;
     line-height: 0;
+    width: 360px;
+    height: auto;
   }
 
   .bbox:not(:hover) > video {
@@ -284,7 +285,6 @@ export default {
   }
 
   .overlay {
-    flex: 1 0 calc(25%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -306,11 +306,6 @@ export default {
     flex-direction: column
   }
 
-  .bbox:after {
-    content: '';
-    display: block;
-    padding-bottom: 100%;
-  }
 
   .tag {
     margin-left: 0.2em;
@@ -318,7 +313,6 @@ export default {
 
   .scene_title {
     font-size: 12px;
-    text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

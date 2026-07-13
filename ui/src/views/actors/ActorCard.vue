@@ -2,7 +2,7 @@
   <div class="card is-shadowless">
     <div class="card-image">
       <div class="bbox"
-           v-bind:style="{backgroundImage: `url(${getImageURL(actor.image_url)})`, backgroundSize: actorCardScale, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity:isAvailable(actor) ? 1.0 : isAvailOpacity, aspectRatio: actorCardAspectRatio}"
+           v-bind:style="{backgroundImage: `url(${getImageURL(actor.image_url)})`, backgroundSize: actorCardScale, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity:isAvailable(actor) ? 1.0 : isAvailOpacity, aspectRatio: actorCardAspectRatio, width: '200px'}"
            @click="showDetails(actor)"
            @mouseover="preview = true"
            @mouseleave="preview = false">
@@ -148,7 +148,6 @@ export default {
   }
 
   .bbox {
-    flex: 1 0 calc(25%);
     background: #f0f0f0;
     display: flex;
     align-items: center;
@@ -156,6 +155,8 @@ export default {
     overflow: hidden;
     padding: 0;
     line-height: 0;
+    width: 200px;
+    height: auto;
   }
 
   .bbox:not(:hover) > video {
@@ -183,11 +184,6 @@ export default {
     justify-content: flex-end;
   }
 
-  .bbox:after {
-    content: '';
-    display: block;
-    padding-bottom: 100%;
-  }
 
   .tag {
     margin-left: 0.1em;
@@ -195,7 +191,6 @@ export default {
 
   .scene_title {
     font-size: 12px;
-    text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

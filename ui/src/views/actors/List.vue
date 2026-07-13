@@ -44,25 +44,6 @@
         </b-tooltip>
         <span v-show="show_actor_id==='never show, just need the computed show_actor_id to trigger '">{{show_actor_id}}</span>
       </div>
-      <div class="column">
-        <div class="is-pulled-right">
-          <b-field>
-            <span class="list-header-label">{{$t('Card size')}}</span>
-            <b-radio-button v-model="cardSize" native-value="1" size="is-small">
-              XS
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="2" size="is-small">
-              S
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="3" size="is-small">
-              M
-            </b-radio-button>
-            <b-radio-button v-model="cardSize" native-value="4" size="is-small">
-              L
-            </b-radio-button>
-          </b-field>
-        </div>
-      </div>
     </div>
         <div class="columns is-gapless is-centered" v-if="hideLetters">
           <b-radio-button v-model="jumpTo" native-value="" size="is-small"></b-radio-button>
@@ -91,11 +72,8 @@
 
     <div class="is-clearfix"></div>
 
-    <div class="columns is-multiline">
-      <div :class="['column', 'is-multiline', cardSizeClass]"
-           v-for="actor in actors" :key="actor.id">
-        <ActorCard :actor="actor"/>
-      </div>
+    <div class="grid-actors">
+      <ActorCard v-for="actor in actors" :key="actor.id" :actor="actor"/>
     </div>
   </div>
 </template>
@@ -109,53 +87,28 @@ export default {
   name: 'List',
   components: { ActorCard, GlobalEvents },
   data () {
-    return {      
-      current: 1,      
+    return {
+      current: 1,
+      windowWidth: window.innerWidth,
+      resizeHandler: null
     }
   },
   created () {
     const page = parseInt(this.$route.query.page) || 1
     this.current = page
+    this.updateLimit(this.calculatedLimit, false)
   },
   computed: {
-    cardSize: {
-      get () {
-        return this.$store.state.actorList.filters.cardSize
-      },
-      set (value) {
-        this.$store.state.actorList.filters.cardSize = value
-        switch (value){
-          case "1":
-            this.limit=24
-            break
-          case "2":
-            this.limit=15
-            break
-          case "3":
-            this.limit=12
-            break
-          case "4":
-            this.limit=9
-            break
-            }            
-        }      
+    columnsPerRow () {
+      // 220px covers 200px card + gap/margins
+      return Math.max(1, Math.floor(this.windowWidth / 220))
     },
-    limit: {
-      get(){
-        return this.$store.state.actorList.limit
-      },
-      set(newLimit){
-        // find the position of the first actor
-        let currentOffset = this.$store.state.actorList.offset - this.$store.state.actorList.limit + 1
-        // what is the new page number, based on the new limit
-        this.current = Math.floor(currentOffset / newLimit) + 1
-        if (this.current<1)
-          this.current=1
-        this.$store.state.actorList.limit = newLimit
-        // what is the the first actor based on the new page size
-        this.$store.state.actorList.offset = (this.current -1) * this.$store.state.actorList.limit          
-        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset })
-      }
+    calculatedLimit () {
+      // exactly 3 rows per page
+      return this.columnsPerRow * 3
+    },
+    limit () {
+      return this.$store.state.actorList.limit
     },
     jumpTo: {
       get () {
@@ -164,20 +117,6 @@ export default {
       set (value) {
         this.$store.state.actorList.filters.jumpTo = value
         this.reloadList()
-      }
-    },
-    cardSizeClass () {
-      switch (this.$store.state.actorList.filters.cardSize) {
-        case '1':
-          return 'is-2'
-        case '2':
-          return 'is-one-fifth'
-        case '3':
-          return 'is-one-quarter'
-        case '4':
-          return 'is-one-third'
-        default:
-          return 'is-one-fifth'
       }
     },
     isLoading () {
@@ -232,7 +171,26 @@ export default {
         },
     },
   },
+  watch: {
+    windowWidth () {
+      this.updateLimit(this.calculatedLimit, true)
+    }
+  },
   methods: {
+    updateLimit (newLimit, reload) {
+      if (newLimit === this.$store.state.actorList.limit) return
+      // find the position of the first actor
+      let currentOffset = this.$store.state.actorList.offset - this.$store.state.actorList.limit + 1
+      // what is the new page number, based on the new limit
+      this.current = Math.floor(currentOffset / newLimit) + 1
+      if (this.current < 1) this.current = 1
+      this.$store.state.actorList.limit = newLimit
+      // what is the first actor based on the new page size
+      this.$store.state.actorList.offset = (this.current - 1) * this.$store.state.actorList.limit
+      if (reload) {
+        this.$store.dispatch('actorList/load', { offset: this.$store.state.actorList.offset })
+      }
+    },
     reloadList () {
       this.$router.push({
         name: 'actors',
@@ -281,6 +239,15 @@ export default {
       }      
       this.pageChanged()
     },
+  },
+  mounted () {
+    this.resizeHandler = () => { this.windowWidth = window.innerWidth }
+    window.addEventListener('resize', this.resizeHandler)
+  },
+  beforeDestroy () {
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler)
+    }
   }
 }
 </script>
@@ -288,5 +255,11 @@ export default {
 <style scoped>
   .list-header-label {
     padding-right: 1em;
+  }
+  .grid-actors {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 200px);
+    gap: 1rem;
+    justify-content: center;
   }
 </style>

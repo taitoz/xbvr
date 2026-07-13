@@ -7,7 +7,7 @@
         <span aria-hidden="true"></span>
       </a>
       <b-navbar-item>
-        <h1 class="title">XBVR <small>{{currentVersion}}</small></h1>
+        <h1 class="title">XBVR <small class="version-tag">{{displayVersion}}</small></h1>
       </b-navbar-item>
     </template>
     <template slot="start">
@@ -72,6 +72,9 @@ export default {
     },
     lastScrapeMessage () {
       return this.$store.state.messages.lastScrapeMessage
+    },
+    displayVersion () {
+      return this.currentVersion === 'CURRENT' ? 'dev build' : this.currentVersion
     }
   },
   mounted () {
@@ -107,13 +110,17 @@ export default {
 
   h1 {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1;
   }
 
-  h1 small {
-    font-size: 0.5em;
-    margin-left: 0.5em;
-    opacity: 0.5;
+  .version-tag {
+    display: block;
+    font-size: 11px;
+    opacity: 0.6;
+    margin-left: 0;
+    margin-top: 2px;
   }
 
   th {
