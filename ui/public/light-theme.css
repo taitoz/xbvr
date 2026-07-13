@@ -950,8 +950,9 @@ fieldset[disabled] .button.is-link {
 	height: fit-content !important;
 }
 
-.scene_title {
-	font-size: 13px;
+.scene_title,
+.b-radio.radio.is-small {
+	font-size: 14px !important;
 }
 
 .column {
@@ -968,7 +969,8 @@ fieldset[disabled] .button.is-link {
 
 .navbar-item,
 .navbar-link {
-	padding: 0;
+	padding-left: .5em;
+	font-weight: 600;
 }
 
 .tag:not(body) {

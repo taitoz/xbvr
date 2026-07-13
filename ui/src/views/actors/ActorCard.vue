@@ -2,7 +2,7 @@
   <div class="card is-shadowless">
     <div class="card-image">
       <div class="bbox"
-           v-bind:style="{backgroundImage: `url(${getImageURL(actor.image_url)})`, backgroundSize: actorCardScale, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity:isAvailable(actor) ? 1.0 : isAvailOpacity, aspectRatio: actorCardAspectRatio, width: '200px'}"
+           v-bind:style="{backgroundImage: `url(${getImageURL(actor.image_url)})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity:isAvailable(actor) ? 1.0 : isAvailOpacity, width: '150px', height: '250px'}"
            @click="showDetails(actor)"
            @mouseover="preview = true"
            @mouseleave="preview = false">
@@ -155,8 +155,8 @@ export default {
     overflow: hidden;
     padding: 0;
     line-height: 0;
-    width: 200px;
-    height: auto;
+    width: 150px;
+    height: 250px;
   }
 
   .bbox:not(:hover) > video {

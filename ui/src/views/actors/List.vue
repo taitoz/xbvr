@@ -9,12 +9,12 @@
     />
     <b-loading :is-full-page="true" :active.sync="isLoading"></b-loading>
 
-    <div class="columns is-multiline is-full">
-      <div class="column">
+    <div class="columns is-multiline is-full is-centered">
+      <div class="column has-text-centered">
         <strong>{{total}} results</strong>
       </div>
-      <div class="column is-narrow">
-        <div class="columns is-gapless">
+      <div class="column is-narrow has-text-centered">
+        <div class="columns is-gapless is-centered">
           <b-radio-button v-model="availFilter" native-value="any" size="is-small">
             {{ $t('Any') }} ({{countAny}})
           </b-radio-button>
@@ -23,7 +23,7 @@
           </b-radio-button>
         </div>
       </div>
-      <div class="column">
+      <div class="column has-text-centered">
         <b-tooltip :label="$t('Press o/left arrow to page back, p/right arrow to page forward')" :delay="500" position="is-top">
           <b-pagination
               :total="total"
@@ -100,8 +100,8 @@ export default {
   },
   computed: {
     columnsPerRow () {
-      // 220px covers 200px card + gap/margins
-      return Math.max(1, Math.floor(this.windowWidth / 220))
+      // 170px covers 150px card + gap/margins
+      return Math.max(1, Math.floor(this.windowWidth / 170))
     },
     calculatedLimit () {
       // exactly 3 rows per page
@@ -116,6 +116,7 @@ export default {
       },
       set (value) {
         this.$store.state.actorList.filters.jumpTo = value
+        this.current = 1
         this.reloadList()
       }
     },
@@ -154,6 +155,7 @@ export default {
       },
       set (value) {
         this.$store.state.actorList.filters.min_avail = value === 'available' ? 1 : 0
+        this.current = 1
         this.reloadList()
       }
     },
@@ -258,7 +260,7 @@ export default {
   }
   .grid-actors {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 200px);
+    grid-template-columns: repeat(auto-fill, 150px);
     gap: 1rem;
     justify-content: center;
   }

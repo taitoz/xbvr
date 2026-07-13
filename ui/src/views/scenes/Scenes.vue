@@ -107,11 +107,11 @@ export default {
   }
   #scrollButtons {
     display: flex;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 8px;
     position: fixed;
     bottom: 20px;
-    left: 30px;
+    right: 30px;
     z-index: 1000;
   }
   #toTop, #toggleInfiniteScroll {

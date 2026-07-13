@@ -101,7 +101,7 @@ export default {
     display: none;
     position: fixed;
     bottom: 20px;
-    left: 30px;
+    right: 30px;
     background-color: #f0f0f0;
     color: #4a4a4a;
     padding: 15px;
