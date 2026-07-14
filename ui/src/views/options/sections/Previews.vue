@@ -69,12 +69,6 @@
               <b-button type="is-primary" @click="startGenerating" :disabled="previewLeft === 0 || isGenerating" style="margin-right:1em">Start generating previews</b-button>
               <b-button @click="stopPreview" :disabled="!isGenerating">Stop generating</b-button>
             </b-field>
-            <p v-if="previewStarted" style="margin-top:0.5em">
-              <span v-if="previewCalculating">Calculating...</span>
-              <span v-else-if="previewTotal !== null">
-                <strong>Total:</strong> {{ previewTotal }} <strong>Left:</strong> {{ previewLeft }}
-              </span>
-            </p>
           </section>
         </div>
         <div class="column">
@@ -105,18 +99,15 @@ export default {
   data () {
     return {
       isLoading: true,
-      snippetLength: 0.2,
-      snippetAmount: 2,
-      resolution: 300,
+      snippetLength: 1.4,
+      snippetAmount: 14,
+      resolution: 480,
       extraSnippet: false,
       useCUDA: true,
-      pitch: 15,
+      pitch: 14,
       timerInterval: null,
       countInterval: null,
-      previewLeft: null,
-      previewTotal: null,
-      previewCalculating: false,
-      previewStarted: false
+      previewLeft: null
     }
   },
   async mounted () {
@@ -218,20 +209,17 @@ export default {
         const data = await ky.get('/api/task/preview/count').json()
         this.previewLeft = data.left
         if (setTotal) {
-          this.previewTotal = data.total
+          this.$store.state.messages.previewGenerationTotal = data.left
+          this.$store.state.messages.previewGenerationLeft = data.left
         }
       } catch (e) {
         // ignore
       }
     },
     async startGenerating () {
-      this.previewStarted = true
-      this.previewCalculating = true
-      this.previewLeft = null
-      this.previewTotal = null
-      await ky.get('/api/task/preview/generate')
       await this.fetchPreviewCount(true)
-      this.previewCalculating = false
+      this.$store.state.messages.previewGenerationStatus = 'generating'
+      await ky.get('/api/task/preview/generate')
     },
     async stopPreview () {
       await ky.get('/api/task/preview/stop')

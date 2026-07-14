@@ -74,7 +74,17 @@ export default {
         this.$store.state.messages.lockRescan = dataArr.argsDict.locked
       }
       if (dataArr.argsDict.name === 'previews') {
+        const wasLocked = this.$store.state.messages.lockPreview
         this.$store.state.messages.lockPreview = dataArr.argsDict.locked
+        if (dataArr.argsDict.locked) {
+          if (this.$store.state.messages.previewGenerationStatus !== 'generating') {
+            this.$store.state.messages.previewGenerationTotal = null
+            this.$store.state.messages.previewGenerationLeft = null
+          }
+          this.$store.state.messages.previewGenerationStatus = 'generating'
+        } else if (wasLocked) {
+          this.$store.state.messages.previewGenerationStatus = 'complete'
+        }
       }
     })
 

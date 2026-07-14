@@ -16,7 +16,6 @@
     <SearchStashdbScenes v-if="showSearchStashdbScenes" />
     <SearchStashdbActors v-if="showSearchStashdbActors" />
 
-    <QuickFind/>
     <MigrationOverlay/>
 
     <Socket/>
@@ -28,7 +27,6 @@ import GlobalEvents from 'vue-global-events'
 
 import Navbar from './Navbar.vue'
 import Socket from './Socket.vue'
-import QuickFind from './QuickFind'
 import Details from './views/scenes/Details'
 import EditScene from './views/scenes/EditScene'
 import ActorDetails from './views/actors/ActorDetails'
@@ -38,7 +36,7 @@ import SearchStashdbActors from './views/actors/SearchStashdbActors'
 import MigrationOverlay from './components/MigrationOverlay'
 
 export default {
-  components: { Navbar, Socket, QuickFind, GlobalEvents, Details, EditScene, ActorDetails, EditActor, SearchStashdbScenes, SearchStashdbActors, MigrationOverlay },
+  components: { Navbar, Socket, GlobalEvents, Details, EditScene, ActorDetails, EditActor, SearchStashdbScenes, SearchStashdbActors, MigrationOverlay },
   mounted () {
     this.applyTheme(this.theme)
   },

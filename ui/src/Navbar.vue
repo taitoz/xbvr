@@ -23,8 +23,44 @@
       <b-navbar-item tag="router-link" :to="{ path: './options' }">
         {{$t('Options')}}
       </b-navbar-item>
-      <b-navbar-item @click="$store.commit('overlay/showQuickFind')">
-        {{$t('Quick find')}}
+      <b-navbar-item class="quick-find">
+        <b-autocomplete
+          ref="autocompleteInput"
+          :data="data"
+          placeholder="I'm looking for..."
+          field="query"
+          :loading="isFetching"
+          v-model="queryString"
+          @typing="getAsyncData"
+          @select="showSceneDetails"
+          :open-on-focus="true"
+          max-height="450">
+          <template slot-scope="props">
+            <div class="media">
+              <div class="media-left">
+                <vue-load-image>
+                  <img slot="image" :src="getImageURL(props.option.cover_url)" width="64"/>
+                  <img slot="preloader" src="/ui/images/blank.png" width="64"/>
+                  <img slot="error" src="/ui/images/blank.png" width="64"/>
+                </vue-load-image>
+              </div>
+              <div class="media-content">
+                {{ props.option.site }}
+                <b-icon v-if="props.option.is_hidden" pack="mdi" icon="eye-off-outline" size="is-small"/><br/>
+                <div class="truncate"><strong>{{ props.option.title }}</strong></div>
+                <small>
+                  <span v-for="(c, idx) in props.option.cast" :key="'cast' + idx">
+                    {{ c.name }}<span v-if="idx < props.option.cast.length - 1">, </span>
+                  </span>
+                </small>
+                <star-rating v-if="props.option.star_rating != 0" :read-only="true" :rating="props.option.star_rating" :increment="0.5" :show-rating="false" :star-size="10"/>
+              </div>
+              <div class="media-right">
+                {{ format(parseISO(props.option.release_date), 'yyyy-MM-dd') }}
+              </div>
+            </div>
+          </template>
+        </b-autocomplete>
       </b-navbar-item>
     </template>
     <template slot="end">
@@ -38,6 +74,11 @@
             <th><span :class="[lockScrape ? 'pulsate' : '']">{{$t('Data')}} →</span></th>
             <td>{{lastScrapeMessage.message}}</td>
           </tr>
+          <tr v-if="previewGenerationStatus">
+            <th><span :class="[lockPreview ? 'pulsate' : '']">Preview generation →</span></th>
+            <td v-if="lockPreview">total: {{ previewGenerationTotal }} left: {{ previewGenerationLeft }}</td>
+            <td v-else>complete</td>
+          </tr>
         </table>
       </b-navbar-item>
     </template>
@@ -46,12 +87,22 @@
 
 <script>
 import ky from 'ky'
+import VueLoadImage from 'vue-load-image'
+import { format, parseISO } from 'date-fns'
+import StarRating from 'vue-star-rating'
 
 export default {
+  components: { VueLoadImage, StarRating },
   data () {
     return {
       currentVersion: '',
-      latestVersion: ''
+      latestVersion: '',
+      data: [],
+      dataNumRequests: 0,
+      dataNumResponses: 0,
+      isFetching: false,
+      queryString: '',
+      previewProgressInterval: null
     }
   },
   computed: {
@@ -70,11 +121,51 @@ export default {
     lockScrape () {
       return this.$store.state.messages.lockScrape
     },
+    lockPreview () {
+      return this.$store.state.messages.lockPreview
+    },
+    previewGenerationStatus () {
+      return this.$store.state.messages.previewGenerationStatus
+    },
+    previewGenerationTotal () {
+      return this.$store.state.messages.previewGenerationTotal
+    },
+    previewGenerationLeft () {
+      return this.$store.state.messages.previewGenerationLeft
+    },
     lastScrapeMessage () {
       return this.$store.state.messages.lastScrapeMessage
     },
     displayVersion () {
       return this.currentVersion === 'CURRENT' ? 'dev build' : this.currentVersion
+    },
+    quickFindVisible () {
+      return this.$store.state.overlay.quickFind.show
+    }
+  },
+  watch: {
+    quickFindVisible (show) {
+      if (!show) {
+        return
+      }
+      this.$nextTick(() => {
+        const searchString = this.$store.state.overlay.quickFind.searchString
+        if (searchString) {
+          this.queryString = searchString
+          this.$store.state.overlay.quickFind.searchString = null
+          this.getAsyncData(searchString)
+        }
+        this.$refs.autocompleteInput.$refs.input.focus()
+      })
+    },
+    lockPreview (locked) {
+      if (locked) {
+        this.fetchPreviewProgress()
+        this.previewProgressInterval = setInterval(this.fetchPreviewProgress, 3000)
+      } else if (this.previewProgressInterval) {
+        clearInterval(this.previewProgressInterval)
+        this.previewProgressInterval = null
+      }
     }
   },
   mounted () {
@@ -95,6 +186,69 @@ export default {
         })
       }
     })
+  },
+  beforeDestroy () {
+    if (this.previewProgressInterval) {
+      clearInterval(this.previewProgressInterval)
+    }
+  },
+  methods: {
+    format,
+    parseISO,
+    async getAsyncData (query) {
+      const requestIndex = this.dataNumRequests
+      this.dataNumRequests += 1
+      if (!query.length) {
+        this.data = []
+        this.dataNumResponses = requestIndex + 1
+        this.isFetching = false
+        return
+      }
+      this.isFetching = true
+      const resp = await ky.get('/api/scene/search', { searchParams: { q: query } }).json()
+      if (requestIndex >= this.dataNumResponses) {
+        this.dataNumResponses = requestIndex + 1
+        if (this.dataNumResponses === this.dataNumRequests) {
+          this.isFetching = false
+        }
+        this.data = resp.results > 0 ? resp.scenes : []
+      }
+    },
+    async fetchPreviewProgress () {
+      try {
+        const data = await ky.get('/api/task/preview/count').json()
+        const messages = this.$store.state.messages
+        if (messages.previewGenerationTotal === null) {
+          messages.previewGenerationTotal = data.left
+        }
+        messages.previewGenerationLeft = data.left
+      } catch (e) {
+        // ignore
+      }
+    },
+    getImageURL (u) {
+      if (u && u.startsWith('http')) {
+        return '/img/120x/' + u.replace('://', ':/')
+      }
+      return u || '/ui/images/blank.png'
+    },
+    showSceneDetails (scene) {
+      if (!scene) {
+        return
+      }
+      const quickFind = this.$store.state.overlay.quickFind
+      this.data = []
+      this.queryString = ''
+      if (quickFind.displaySelectedScene) {
+        if (this.$router.currentRoute.name !== 'scenes') {
+          this.$router.push({ name: 'scenes' })
+        }
+        this.$store.commit('overlay/showDetails', { scene })
+      } else {
+        quickFind.selectedScene = scene
+      }
+      this.$store.commit('overlay/hideQuickFind')
+    }
   }
 }
 </script>
@@ -121,6 +275,14 @@ export default {
     opacity: 0.6;
     margin-left: 0;
     margin-top: 2px;
+  }
+
+  .quick-find {
+    width: 280px;
+  }
+
+  .quick-find ::v-deep .dropdown-menu {
+    z-index: 40;
   }
 
   th {
