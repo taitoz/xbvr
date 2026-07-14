@@ -7,7 +7,7 @@
         <span aria-hidden="true"></span>
       </a>
       <b-navbar-item>
-        <h1 class="title">XBVR <small class="version-tag">{{displayVersion}}</small></h1>
+        <h1 class="title"><img class="brand-logo" src="/ui/images/xbvr-logo.png" alt="XBVR"/> <small class="version-tag">{{displayVersion}}</small></h1>
       </b-navbar-item>
     </template>
     <template slot="start">
@@ -269,6 +269,11 @@ export default {
     flex-direction: column;
     align-items: flex-start;
     line-height: 1;
+  }
+
+  .brand-logo {
+    height: 34px;
+    width: auto;
   }
 
   .version-tag {

@@ -235,10 +235,11 @@ a:active {
 .xbvr-theme-dark .quick-find .input:focus,
 .xbvr-theme-dark .quick-find .input:active {
 	background-color: #232323;
-	border-color: #fff;
-	color: #fff;
+	border-color: #b5b5b5;
+	color: #b5b5b5;
 }
-.xbvr-theme-dark .quick-find .input::placeholder {
+.xbvr-theme-dark .input::placeholder,
+.xbvr-theme-dark .textarea::placeholder {
 	color: #b5b5b5;
 	opacity: 1;
 }
