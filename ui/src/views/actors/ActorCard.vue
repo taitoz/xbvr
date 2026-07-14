@@ -2,7 +2,7 @@
   <div class="card is-shadowless">
     <div class="card-image">
       <div class="bbox"
-           v-bind:style="{backgroundImage: `url(${getImageURL(actor.image_url)})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat', opacity:isAvailable(actor) ? 1.0 : isAvailOpacity, width: '200px', height: '300px'}"
+           v-bind:style='{backgroundImage: `url("${getImageURL(actor.image_url)}")`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", opacity:isAvailable(actor) ? 1.0 : isAvailOpacity, width: "200px", height: "300px"}'
            @click="showDetails(actor)"
            @mouseover="preview = true"
            @mouseleave="preview = false">

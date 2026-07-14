@@ -31,42 +31,81 @@ HEADERS = {
 CUP_ORDER = ["AA", "A", "B", "C", "D", "DD", "E", "F", "G", "H", "I", "J", "K"]
 
 COUNTRY_MAP = {
-    "United States": "US", "USA": "US", "American": "US",
-    "Czech Republic": "CZ", "Czechia": "CZ", "Czech": "CZ",
-    "Russia": "RU", "Russian": "RU",
-    "Ukraine": "UA", "Ukrainian": "UA",
-    "Germany": "DE", "German": "DE",
-    "France": "FR", "French": "FR",
-    "Italy": "IT", "Italian": "IT",
-    "Spain": "ES", "Spanish": "ES",
-    "Hungary": "HU", "Hungarian": "HU",
-    "Poland": "PL", "Polish": "PL",
-    "Brazil": "BR", "Brazilian": "BR",
-    "Colombia": "CO", "Colombian": "CO",
-    "Romania": "RO", "Romanian": "RO",
-    "United Kingdom": "GB", "UK": "GB", "British": "GB",
-    "Japan": "JP", "Japanese": "JP",
-    "China": "CN", "Chinese": "CN",
-    "Australia": "AU", "Australian": "AU",
-    "Canada": "CA", "Canadian": "CA",
-    "Netherlands": "NL", "Dutch": "NL",
-    "Sweden": "SE", "Swedish": "SE",
-    "Denmark": "DK", "Danish": "DK",
-    "Norway": "NO", "Norwegian": "NO",
-    "Finland": "FI", "Finnish": "FI",
-    "Austria": "AT", "Austrian": "AT",
-    "Switzerland": "CH", "Swiss": "CH",
-    "Belgium": "BE", "Belgian": "BE",
-    "Portugal": "PT", "Portuguese": "PT",
-    "Greece": "GR", "Greek": "GR",
-    "Slovakia": "SK", "Slovak": "SK",
-    "Argentina": "AR", "Argentine": "AR",
-    "Mexico": "MX", "Mexican": "MX",
-    "Venezuela": "VE", "Venezuelan": "VE",
-    "South Korea": "KR", "Korean": "KR",
-    "Thailand": "TH", "Thai": "TH",
-    "Philippines": "PH", "Filipino": "PH",
-    "Israel": "IL", "Israeli": "IL",
+    "United States": "US", "USA": "US", "US": "US", "American": "US",
+    "Czech Republic": "CZ", "Czechia": "CZ", "CZ": "CZ", "Czech": "CZ",
+    "Russia": "RU", "Russian": "RU", "RU": "RU", "Russian Federation": "RU",
+    "Ukraine": "UA", "Ukrainian": "UA", "UA": "UA",
+    "Germany": "DE", "German": "DE", "DE": "DE",
+    "France": "FR", "French": "FR", "FR": "FR",
+    "Italy": "IT", "Italian": "IT", "IT": "IT",
+    "Spain": "ES", "Spanish": "ES", "ES": "ES",
+    "Hungary": "HU", "Hungarian": "HU", "HU": "HU",
+    "Poland": "PL", "Polish": "PL", "PL": "PL",
+    "Brazil": "BR", "Brazilian": "BR", "BR": "BR",
+    "Colombia": "CO", "Colombian": "CO", "CO": "CO",
+    "Cuba": "CU", "Cuban": "CU", "CU": "CU",
+    "Romania": "RO", "Romanian": "RO", "RO": "RO",
+    "Iraq": "IQ", "Iraqi": "IQ", "IQ": "IQ",
+    "United Kingdom": "GB", "UK": "GB", "GB": "GB", "British": "GB", "English": "GB", "Welsh": "GB", "Scottish": "GB",
+    "Japan": "JP", "Japanese": "JP", "JP": "JP",
+    "China": "CN", "Chinese": "CN", "CN": "CN",
+    "Australia": "AU", "Australian": "AU", "AU": "AU",
+    "Canada": "CA", "Canadian": "CA", "CA": "CA",
+    "Netherlands": "NL", "Dutch": "NL", "NL": "NL",
+    "Sweden": "SE", "Swedish": "SE", "SE": "SE",
+    "Denmark": "DK", "Danish": "DK", "DK": "DK",
+    "South Korea": "KR", "South Korean": "KR", "Korean": "KR", "KR": "KR",
+    "Belarus": "BY", "Belarusian": "BY", "BY": "BY",
+    "Kyrgyzstan": "KG", "Kyrgyzstani": "KG", "KG": "KG",
+    "Norway": "NO", "Norwegian": "NO", "NO": "NO",
+    "Finland": "FI", "Finnish": "FI", "FI": "FI",
+    "Austria": "AT", "Austrian": "AT", "AT": "AT",
+    "Switzerland": "CH", "Swiss": "CH", "CH": "CH",
+    "Belgium": "BE", "Belgian": "BE", "BE": "BE",
+    "Portugal": "PT", "Portuguese": "PT", "PT": "PT",
+    "Greece": "GR", "Greek": "GR", "GR": "GR",
+    "Slovakia": "SK", "Slovak": "SK", "Slovakian": "SK", "SK": "SK",
+    "Argentina": "AR", "Argentine": "AR", "AR": "AR",
+    "Mexico": "MX", "Mexican": "MX", "MX": "MX",
+    "Venezuela": "VE", "Venezuelan": "VE", "VE": "VE",
+    "Vietnam": "VN", "Vietnamese": "VN", "VN": "VN",
+    "Thailand": "TH", "Thai": "TH", "TH": "TH",
+    "Philippines": "PH", "Filipino": "PH", "PH": "PH",
+    "Israel": "IL", "Israeli": "IL", "IL": "IL",
+    "Kazakhstan": "KZ", "Kazakhstani": "KZ", "KZ": "KZ",
+    "Latvia": "LV", "Latvian": "LV",
+    "Lithuania": "LT", "Lithuanian": "LT",
+    "Serbia": "RS", "Serbian": "RS",
+    "Honduras": "HN", "Honduran": "HN",
+    "Taiwan": "TW", "Taiwanese": "TW",
+    "Syria": "SY", "Syrian": "SY",
+    "Puerto Rico": "PR", "Puerto Rican": "PR",
+    "Moldova": "MD", "Moldovan": "MD", "Republic of Moldova": "MD",
+    "Tunisia": "TN", "Tunisian": "TN",
+    "South Africa": "ZA", "South African": "ZA",
+    "Panama": "PA", "Panamanian": "PA",
+    "Ethiopia": "ET", "Ethiopian": "ET",
+    "Chile": "CL", "Chilean": "CL",
+    "Iceland": "IS", "Icelandic": "IS",
+    "Egypt": "EG", "Egyptian": "EG",
+    "Democratic Republic of the Congo": "CD", "Congo": "CD", "Congolese": "CD",
+    "Turkey": "TR", "Turkish": "TR",
+    "Morocco": "MA", "Moroccan": "MA",
+    "El Salvador": "SV", "Salvadoran": "SV",
+    "Dominican Republic": "DO", "Dominican": "DO",
+    "Hong Kong": "HK", "Hong Konger": "HK",
+    "Cameroon": "CM", "Cameroonian": "CM",
+    "Pakistan": "PK", "Pakistani": "PK",
+    "Bangladesh": "BD", "Bangladeshi": "BD",
+    "Bolivia": "BO", "Bolivian": "BO",
+    "Indonesia": "ID", "Indonesian": "ID",
+    "Peru": "PE", "Peruvian": "PE",
+    "Ecuador": "EC", "Ecuadorian": "EC",
+    "Uruguay": "UY", "Uruguayan": "UY",
+    "Guatemala": "GT", "Guatemalan": "GT",
+    "Jordan": "JO", "Jordanian": "JO",
+    "Kenya": "KE", "Kenyan": "KE",
+    "New Zealand": "NZ", "New Zealander": "NZ",
 }
 
 
@@ -443,6 +482,12 @@ DB_FIELD_MAP = {
 }
 
 
+def normalize_url(u):
+    if not u:
+        return ""
+    return u.lower().rstrip("/").replace("%2520", " ").replace("%20", " ")
+
+
 def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry_run=False):
     """Apply scraped fields to the actors table row."""
     import sqlite3, json
@@ -570,14 +615,18 @@ def update_actor_db(db_path, actor_id, actor_name, scraped, overwrite=False, dry
         print(f"  [CLEAN] Removed {removed} bad URLs from image_arr")
     arr = cleaned
     added_images = []
-    all_new_images = []
+    seen = {normalize_url(u): True for u in arr}
     main_img = scraped.get("image_url", "")
-    if main_img:
-        all_new_images.append(main_img)
-    all_new_images.extend(scraped.get("extra_images", []))
-    for img in all_new_images:
-        if img and img not in arr:
+    extra_imgs = scraped.get("extra_images", [])
+    # prepend main image first (matching Go AddToImageArray behavior)
+    if main_img and normalize_url(main_img) not in seen:
+        arr.insert(0, main_img)
+        seen[normalize_url(main_img)] = True
+        added_images.append(main_img)
+    for img in extra_imgs:
+        if img and normalize_url(img) not in seen:
             arr.append(img)
+            seen[normalize_url(img)] = True
             added_images.append(img)
     if added_images or arr != original_arr:
         updates["image_arr"] = json.dumps(arr)
@@ -697,6 +746,25 @@ def get_actors_with_available_scenes(db_path):
     return [(r["id"], r["name"]) for r in rows]
 
 
+def get_actors_with_unavailable_scenes(db_path):
+    """Return list of (id, name) for actors that have at least one is_available=0 scene."""
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT DISTINCT a.id, a.name
+        FROM actors a
+        JOIN scene_cast sc ON sc.actor_id = a.id
+        JOIN scenes s ON s.id = sc.scene_id
+        WHERE s.is_available = 0
+        ORDER BY a.name
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    return [(r["id"], r["name"]) for r in rows]
+
+
 def get_babepedia_actors_from_db(db_path):
     """Return list of (id, name, babepedia_url) for actors with babepedia scrape URL."""
     import sqlite3, json
@@ -733,7 +801,8 @@ if __name__ == "__main__":
     parser.add_argument("--update", action="store_true", help="Update matching actor in DB")
     parser.add_argument("--update-all", action="store_true", help="Update all actors in DB that have babepedia URL")
     parser.add_argument("--all-available", action="store_true", help="Scrape all actors with is_available=1 scenes by name")
-    parser.add_argument("--skip", type=int, default=0, help="Skip first N actors (for resuming --all-available)")
+    parser.add_argument("--update-any", action="store_true", help="Scrape all actors with is_available=0 scenes by name")
+    parser.add_argument("--skip", type=int, default=0, help="Skip first N actors (for resuming --all-available / --update-any)")
     parser.add_argument("--delay", type=float, default=5.0, help="Delay in seconds between requests (default: 5)")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing non-empty fields")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be updated without writing")
@@ -760,6 +829,33 @@ if __name__ == "__main__":
                 print(f"  [ERROR] {e}")
                 scraped = None
             if scraped and args.update:
+                update_actor_db(args.db, actor_id, actor_name, scraped,
+                                overwrite=args.overwrite, dry_run=args.dry_run)
+                if not args.dry_run:
+                    mark_as_scraped(args.db, actor_id, actor_name)
+            if args.delay > 0:
+                time.sleep(args.delay)
+
+    elif args.update_any:
+        import sqlite3, time
+        actors = get_actors_with_unavailable_scenes(args.db)
+        total = len(actors)
+        print(f"Found {total} actors with unavailable scenes")
+        if args.skip:
+            print(f"Skipping first {args.skip} actors")
+            actors = actors[args.skip:]
+        for idx, (actor_id, actor_name) in enumerate(actors, start=args.skip + 1):
+            babe_slug = actor_name.replace(" ", "_")
+            if not args.overwrite and is_already_scraped(args.db, actor_id):
+                print(f"[{idx}/{total}] {actor_name} -> [SKIP] already scraped")
+                continue
+            print(f"\n[{idx}/{total}] {actor_name} -> {babe_slug}")
+            try:
+                scraped = scrape_babepedia(babe_slug)
+            except Exception as e:
+                print(f"  [ERROR] {e}")
+                scraped = None
+            if scraped:
                 update_actor_db(args.db, actor_id, actor_name, scraped,
                                 overwrite=args.overwrite, dry_run=args.dry_run)
                 if not args.dry_run:
