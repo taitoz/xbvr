@@ -235,7 +235,6 @@ a:active {
 .xbvr-theme-dark .quick-find .input:focus,
 .xbvr-theme-dark .quick-find .input:active {
 	background-color: #232323;
-	border-color: #b5b5b5;
 	color: #b5b5b5;
 }
 .xbvr-theme-dark .input::placeholder,
@@ -452,9 +451,7 @@ strong {
 	line-height: 1.125;
 }
 h1.title::before {
-	content: "XB";
-	color: #b5b5b5;
-	position: absolute;
+	content: "";
 }
 h1.title {
 	color: #ff5800;

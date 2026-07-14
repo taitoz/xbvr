@@ -34,6 +34,10 @@ func (i ActorResource) WebService() *restful.WebService {
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON)
 
+	ws.Route(ws.GET("/search").To(i.searchActors).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Writes(ResponseGetActors{}))
+
 	ws.Route(ws.GET("/filters").To(i.getFilters).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(ResponseGetFilters{}))
@@ -92,6 +96,25 @@ func (i ActorResource) WebService() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes(models.ExternalReferenceLink{}))
 	return ws
+}
+
+func (i ActorResource) searchActors(req *restful.Request, resp *restful.Response) {
+	q := req.QueryParameter("q")
+	if q == "" {
+		resp.WriteHeaderAndEntity(http.StatusOK, ResponseGetActors{Results: 0, Scenes: []models.Actor{}})
+		return
+	}
+
+	db, _ := models.GetDB()
+	defer db.Close()
+
+	var actors []models.Actor
+	db.Where("name LIKE ? OR aliases LIKE ?", "%"+q+"%", "%"+q+"%").
+		Order("avail_count desc, name").
+		Limit(10).
+		Find(&actors)
+
+	resp.WriteHeaderAndEntity(http.StatusOK, ResponseGetActors{Results: len(actors), Scenes: actors})
 }
 
 func (i ActorResource) getFilters(req *restful.Request, resp *restful.Response) {

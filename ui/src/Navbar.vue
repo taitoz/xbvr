@@ -7,7 +7,7 @@
         <span aria-hidden="true"></span>
       </a>
       <b-navbar-item>
-        <h1 class="title"><img class="brand-logo" src="/ui/images/xbvr-logo.png" alt="XBVR"/> <small class="version-tag">{{displayVersion}}</small></h1>
+        <h1 class="title"><img class="brand-logo" :src="logoSrc" alt="XBVR"/> <small class="version-tag">{{displayVersion}}</small></h1>
       </b-navbar-item>
     </template>
     <template slot="start">
@@ -37,7 +37,21 @@
           :clearable="true"
           max-height="450">
           <template slot-scope="props">
-            <div class="media">
+            <div class="media" v-if="props.option._type === 'actor'">
+              <div class="media-left">
+                <vue-load-image>
+                  <img slot="image" :src="getActorImageURL(props.option.image_url)" width="64"/>
+                  <img slot="preloader" src="/ui/images/blank.png" width="64"/>
+                  <img slot="error" src="/ui/images/blank_female_profile.png" width="64"/>
+                </vue-load-image>
+              </div>
+              <div class="media-content">
+                <div class="truncate"><strong>{{ props.option.name }}</strong></div>
+                <small v-if="props.option.aliases">{{ props.option.aliases }}</small><br/>
+                <small>{{ props.option.avail_count }} scenes</small>
+              </div>
+            </div>
+            <div class="media" v-else>
               <div class="media-left">
                 <vue-load-image>
                   <img slot="image" :src="getImageURL(props.option.cover_url)" width="64"/>
@@ -143,6 +157,11 @@ export default {
     },
     quickFindVisible () {
       return this.$store.state.overlay.quickFind.show
+    },
+    logoSrc () {
+      return this.$store.state.optionsWeb.web.theme === 'dark'
+        ? '/ui/images/xbvr-logo.png'
+        : '/ui/images/xbvr-logo-dark.png'
     }
   },
   watch: {
@@ -207,13 +226,18 @@ export default {
         return
       }
       this.isFetching = true
-      const resp = await ky.get('/api/scene/search', { searchParams: { q: query } }).json()
+      const [sceneResp, actorResp] = await Promise.all([
+        ky.get('/api/scene/search', { searchParams: { q: query } }).json(),
+        ky.get('/api/actor/search', { searchParams: { q: query } }).json()
+      ])
       if (requestIndex >= this.dataNumResponses) {
         this.dataNumResponses = requestIndex + 1
         if (this.dataNumResponses === this.dataNumRequests) {
           this.isFetching = false
         }
-        this.data = resp.results > 0 ? resp.scenes : []
+        const scenes = (sceneResp.results > 0 ? sceneResp.scenes : []).map(s => { s._type = 'scene'; return s })
+        const actors = (actorResp.results > 0 ? actorResp.actors : []).map(a => { a._type = 'actor'; return a })
+        this.data = [...actors, ...scenes]
       }
     },
     async fetchPreviewProgress () {
@@ -234,22 +258,33 @@ export default {
       }
       return u || '/ui/images/blank.png'
     },
-    showSceneDetails (scene) {
-      if (!scene) {
+    showSceneDetails (item) {
+      if (!item) {
+        return
+      }
+      this.data = []
+      this.queryString = ''
+      if (item._type === 'actor') {
+        this.$store.commit('overlay/showActorDetails', { actor: item })
+        this.$store.commit('overlay/hideQuickFind')
         return
       }
       const quickFind = this.$store.state.overlay.quickFind
-      this.data = []
-      this.queryString = ''
       if (quickFind.displaySelectedScene) {
         if (this.$router.currentRoute.name !== 'scenes') {
           this.$router.push({ name: 'scenes' })
         }
-        this.$store.commit('overlay/showDetails', { scene })
+        this.$store.commit('overlay/showDetails', { scene: item })
       } else {
-        quickFind.selectedScene = scene
+        quickFind.selectedScene = item
       }
       this.$store.commit('overlay/hideQuickFind')
+    },
+    getActorImageURL (u) {
+      if (u && u.startsWith('http')) {
+        return '/img/120x/' + u.replace('://', ':/')
+      }
+      return u || '/ui/images/blank_female_profile.png'
     }
   }
 }
@@ -286,7 +321,7 @@ export default {
 
   .quick-find {
     position: absolute;
-    left: 50%;
+    left: 51%;
     width: 700px;
     padding: 0;
     transform: translateX(-50%);

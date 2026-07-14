@@ -435,9 +435,7 @@ strong {
 	line-height: 1.125;
 }
 h1.title::before {
-	content: "XB";
-	color: #000000;
-	position: absolute;
+	content: "";
 }
 h1.title {
 	color: #ff5800;
