@@ -230,6 +230,21 @@ a:active {
 	border-radius: 4px;
 	color: #b5b5b5;
 }
+.xbvr-theme-dark .quick-find .input,
+.xbvr-theme-dark .quick-find .input:hover,
+.xbvr-theme-dark .quick-find .input:focus,
+.xbvr-theme-dark .quick-find .input:active {
+	background-color: #232323;
+	border-color: #fff;
+	color: #fff;
+}
+.xbvr-theme-dark .quick-find .input::placeholder {
+	color: #b5b5b5;
+	opacity: 1;
+}
+.xbvr-theme-dark .quick-find .autocomplete .delete {
+	background-color: #b5b5b5;
+}
 .label {
 	color: #b5b5b5;
 	display: block;

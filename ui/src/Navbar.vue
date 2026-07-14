@@ -34,6 +34,7 @@
           @typing="getAsyncData"
           @select="showSceneDetails"
           :open-on-focus="true"
+          :clearable="true"
           max-height="450">
           <template slot-scope="props">
             <div class="media">
@@ -66,18 +67,19 @@
     <template slot="end">
       <b-navbar-item>
         <table style="font-size:0.9em">
-          <tr v-if="Object.keys(lastRescanMessage).length !== 0">
-            <th><span :class="[lockRescan ? 'pulsate' : '']">{{$t('Files')}} →</span></th>
-            <td>{{lastRescanMessage.message}}</td>
+          <tr v-if="Object.keys(lastRescanMessage).length !== 0 || previewGenerationStatus">
+            <th><span :class="[(lockRescan || lockPreview) ? 'pulsate' : '']">{{$t('Files')}} →</span></th>
+            <td>
+              <span v-if="Object.keys(lastRescanMessage).length !== 0">{{lastRescanMessage.message}}</span>
+              <span v-if="previewGenerationStatus">
+                <span v-if="Object.keys(lastRescanMessage).length !== 0"> | </span>
+                Preview generation<span v-if="lockPreview"> Total: {{ previewGenerationTotal }} Left: {{ previewGenerationLeft }}</span><span v-else> complete</span>
+              </span>
+            </td>
           </tr>
           <tr v-if="Object.keys(lastScrapeMessage).length !== 0">
             <th><span :class="[lockScrape ? 'pulsate' : '']">{{$t('Data')}} →</span></th>
             <td>{{lastScrapeMessage.message}}</td>
-          </tr>
-          <tr v-if="previewGenerationStatus">
-            <th><span :class="[lockPreview ? 'pulsate' : '']">Preview generation →</span></th>
-            <td v-if="lockPreview">total: {{ previewGenerationTotal }} left: {{ previewGenerationLeft }}</td>
-            <td v-else>complete</td>
           </tr>
         </table>
       </b-navbar-item>
@@ -278,11 +280,29 @@ export default {
   }
 
   .quick-find {
-    width: 280px;
+    position: absolute;
+    left: 50%;
+    width: 700px;
+    padding: 0;
+    transform: translateX(-50%);
+  }
+
+  .quick-find ::v-deep .autocomplete,
+  .quick-find ::v-deep .control {
+    width: 100%;
   }
 
   .quick-find ::v-deep .dropdown-menu {
     z-index: 40;
+  }
+
+  @media screen and (max-width: 1023px) {
+    .quick-find {
+      position: static;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      transform: none;
+    }
   }
 
   th {

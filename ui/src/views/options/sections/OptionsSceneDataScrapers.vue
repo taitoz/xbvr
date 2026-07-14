@@ -180,7 +180,7 @@ export default {
       currentScraper: '',
       scraperwarning: '',
       scraperwarning2: '',
-      showAllScrapers: true,
+      showAllScrapers: false,
     }
   },
   mounted () {
