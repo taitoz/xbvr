@@ -7,17 +7,15 @@
            @mouseover="preview = true"
            @mouseleave="preview = false">
         <div class="actor-flag-overlay" v-if="actor.nationality">
-          <b-tag type="is-info" size="is-small">
-            <vue-load-image>
-              <img slot="image" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" class="actor-flag" />
-            </vue-load-image>
-          </b-tag>
+          <vue-load-image>
+            <img slot="image" :src="getImageURL('https://flagcdn.com/' + actor.nationality.toLowerCase() +'.svg')" class="actor-flag" />
+          </vue-load-image>
         </div>
       </div>
     </div>
 
     <div style="padding-top:4px;">
-      <div class="scene_title">
+      <div class="actor_name">
         {{actor.name}}
       </div>
       <a v-if="colleague!=undefined" class="button is-info is-outlined is-small"
@@ -196,7 +194,7 @@ export default {
   }
 
   .actor-flag {
-    height: 10px;
+    height: 18px;
     border: 1px solid black;
   }
 
@@ -204,8 +202,10 @@ export default {
     margin-left: 0.1em;
   }
 
-  .scene_title {
-    font-size: 12px;
+  .actor_name {
+    font-size: 14px !important;
+    text-align: center;
+    background-color: #3b3b3b;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
