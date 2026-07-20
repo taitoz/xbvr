@@ -313,7 +313,7 @@ func (i ConfigResource) WebService() *restful.WebService {
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	// "HTTPS / DuckDNS" section endpoints
-	ws.Route(ws.PUT("/interface/https").To(i.saveOptionsHTTPS).
+	ws.Route(ws.PUT("/https").To(i.saveOptionsHTTPS).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	// "Web Advanced UI options" section endpoints
