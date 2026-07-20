@@ -17,3 +17,4 @@ yarn-error.log
 .docker-creds
 xbvr.exe
 build.log
+package-lock.json

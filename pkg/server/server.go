@@ -212,6 +212,11 @@ func StartServer(version, commit, branch, date string) {
 		go tasks.StartDMS()
 	}
 
+	// Caddy HTTPS reverse proxy
+	if config.Config.HTTPS.Enabled && config.Config.HTTPS.AutoStart {
+		go tasks.StartCaddy()
+	}
+
 	// DeoVR remote
 	go session.DeoRemote()
 

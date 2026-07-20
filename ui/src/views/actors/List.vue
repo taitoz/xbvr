@@ -264,7 +264,7 @@ export default {
   }
   .grid-actors {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 200px);
+    grid-template-columns: repeat(auto-fill, 195px);
     gap: 1rem;
     justify-content: center;
   }

@@ -220,6 +220,13 @@ type RequestSaveOptionsStorage struct {
 	VideoExt   []string `json:"video_ext"`
 }
 
+type RequestSaveOptionsHTTPS struct {
+	Enabled    bool   `json:"enabled"`
+	DuckDomain string `json:"duckDomain"`
+	DuckToken  string `json:"duckToken"`
+	AutoStart  bool   `json:"autoStart"`
+}
+
 type RequestSaveCollectorConfig struct {
 	DomainKey string                          `json:"domain_key"`
 	Headers   []scrape.ScrapeHttpKeyValue     `json:"headers"`
@@ -303,6 +310,10 @@ func (i ConfigResource) WebService() *restful.WebService {
 
 	// "Web Advanced UI options" section endpoints
 	ws.Route(ws.PUT("/interface/advanced").To(i.saveOptionsAdvanced).
+		Metadata(restfulspec.KeyOpenAPITags, tags))
+
+	// "HTTPS / DuckDNS" section endpoints
+	ws.Route(ws.PUT("/interface/https").To(i.saveOptionsHTTPS).
 		Metadata(restfulspec.KeyOpenAPITags, tags))
 
 	// "Web Advanced UI options" section endpoints
@@ -564,6 +575,34 @@ func (i ConfigResource) saveOptionsAdvanced(req *restful.Request, resp *restful.
 	config.Config.Advanced.AutoLimitScraping = r.AutoLimitScraping
 	config.Config.Advanced.IgnoreReleasedBefore = r.IgnoreReleasedBefore
 	config.SaveConfig()
+
+	resp.WriteHeaderAndEntity(http.StatusOK, r)
+}
+
+func (i ConfigResource) saveOptionsHTTPS(req *restful.Request, resp *restful.Response) {
+	var r RequestSaveOptionsHTTPS
+	err := req.ReadEntity(&r)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	config.Config.HTTPS.Enabled = r.Enabled
+	config.Config.HTTPS.DuckDomain = r.DuckDomain
+	config.Config.HTTPS.DuckToken = r.DuckToken
+	config.Config.HTTPS.AutoStart = r.AutoStart
+	config.SaveConfig()
+
+	// Start or stop Caddy based on enabled state
+	if r.Enabled {
+		if !tasks.IsCaddyStarted() {
+			go tasks.StartCaddy()
+		}
+	} else {
+		if tasks.IsCaddyStarted() {
+			tasks.StopCaddy()
+		}
+	}
 
 	resp.WriteHeaderAndEntity(http.StatusOK, r)
 }

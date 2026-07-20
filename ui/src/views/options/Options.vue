@@ -25,6 +25,7 @@
             <b-menu-item :label="$t('Players')" :active="active==='interface_deovr'" @click="setActive('interface_deovr')"/>
             <b-menu-item :label="$t('DLNA')" :active="active==='interface_dlna'" @click="setActive('interface_dlna')"/>
             <b-menu-item :label="$t('Web UI')" :active="active==='interface_web'" @click="setActive('interface_web')"/>
+            <b-menu-item :label="$t('HTTPS / DuckDNS')" :active="active==='interface_https'" @click="setActive('interface_https')"/>
             <b-menu-item :label="$t('Advanced')" :active="active==='interface_advanced'" @click="setActive('interface_advanced')"/>
           </b-menu-list>
         </b-menu>
@@ -41,6 +42,7 @@
           <Funscripts v-show="active==='funscripts'"/>
           <SceneDataImportExport v-show="active==='data-import-export'"/>
           <InterfaceWeb v-show="active==='interface_web'"/>
+          <InterfaceHTTPS v-show="active==='interface_https'"/>
           <InterfaceDLNA v-show="active==='interface_dlna'"/>
           <InterfaceDeoVR v-show="active==='interface_deovr'"/>
           <InterfaceAdvanced v-show="active==='interface_advanced'"/>
@@ -54,6 +56,7 @@
 
 <script>
 import InterfaceWeb from './sections/InterfaceWeb'
+import InterfaceHTTPS from './sections/InterfaceHTTPS'
 import Storage from './sections/Storage'
 import SceneDataScrapers from './sections/OptionsSceneDataScrapers'
 import SceneCreate from './sections/OptionsSceneCreate'
@@ -68,7 +71,7 @@ import InterfaceAdvanced from './sections/InterfaceAdvanced.vue'
 import SceneMatchParams from './overlays/SceneMatchParams.vue'
 
 export default {
-  components: { Storage, SceneDataScrapers, SceneCreate, Funscripts, SceneDataImportExport, InterfaceWeb, InterfaceDLNA, InterfaceDeoVR, Cache, Previews, Schedules, InterfaceAdvanced,SceneMatchParams },
+  components: { Storage, SceneDataScrapers, SceneCreate, Funscripts, SceneDataImportExport, InterfaceWeb, InterfaceHTTPS, InterfaceDLNA, InterfaceDeoVR, Cache, Previews, Schedules, InterfaceAdvanced,SceneMatchParams },
   data: function () {
     return {
       active: 'storage'

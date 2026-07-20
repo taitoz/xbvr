@@ -191,6 +191,12 @@ type ObjectConfig struct {
 			JavrScraper string `default:"javdatabase" json:"javrScraper"`
 		} `json:"javr"`
 	} `json:"scraper_settings"`
+	HTTPS struct {
+		Enabled    bool   `default:"false" json:"enabled"`
+		DuckDomain string `default:"" json:"duckDomain"`
+		DuckToken  string `default:"" json:"duckToken"`
+		AutoStart  bool   `default:"false" json:"autoStart"`
+	} `json:"https"`
 }
 
 var (

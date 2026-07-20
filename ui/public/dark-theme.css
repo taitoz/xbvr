@@ -808,8 +808,8 @@ fieldset[disabled] .button {
 }
 .is-large.delete,
 .is-large.modal-close {
-	min-height: 50px;
-	min-width: 50px;
+	min-height: 30px;
+	min-width: 30px;
 }
 .is-large.modal-close:hover {
 	color: black;
@@ -845,11 +845,11 @@ fieldset[disabled] .button {
 #toTop[data-v-50899169],
 #toggleInfiniteScroll[data-v-50899169] {
 	display: none;
-	background-color: #393939;
+	background-color: #d4d4d5;
 	color: #4a4a4a;
-	padding: 15px;
-	border-radius: 10px;
-	font-size: 18px;
+	padding: 6px;
+	border-radius: 6px;
+	font-size: 14px;
 	margin-right: 8px;
 }
 .button.is-link,
