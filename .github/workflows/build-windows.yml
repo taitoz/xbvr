@@ -30,7 +30,6 @@ jobs:
 
       - name: Build UI
         run: |
-          cd ui
           yarn install --ignore-engines
           yarn build
 

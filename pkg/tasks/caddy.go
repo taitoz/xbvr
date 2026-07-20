@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	caddyCmd  *exec.Cmd
+	caddyCmd     *exec.Cmd
 	caddyStarted bool
-	duckdnsStop chan struct{}
+	duckdnsStop  chan struct{}
 )
 
 func getCaddyPath() string {
