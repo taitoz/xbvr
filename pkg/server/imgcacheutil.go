@@ -1,9 +1,7 @@
 package server
 
 import (
-	"context"
 	"net/http"
-	"time"
 
 	"github.com/fcjr/aia-transport-go"
 )
@@ -11,17 +9,6 @@ import (
 // Change INCOMING response header's Cache-Control for persistent disk cache
 type ForceCacheTransport struct {
 	Transport http.RoundTripper
-}
-
-type TimeoutTransport struct {
-	Transport http.RoundTripper
-	Timeout   time.Duration
-}
-
-func (t *TimeoutTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(r.Context(), t.Timeout)
-	defer cancel()
-	return t.Transport.RoundTrip(r.Clone(ctx))
 }
 
 // RoundTrip transport function that will force a Cache-Control of 5 years
@@ -49,8 +36,7 @@ func NewForceCacheTransport() *ForceCacheTransport {
 
 	// this is what willnorris.com/go/imageproxy does by default,
 	// so keep the same here
-	transport, _ := aia.NewTransport()
-	fct.Transport = &TimeoutTransport{Transport: transport, Timeout: 3 * time.Second}
+	fct.Transport, _ = aia.NewTransport()
 
 	return fct
 }
