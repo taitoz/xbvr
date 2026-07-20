@@ -50,7 +50,7 @@ func NewForceCacheTransport() *ForceCacheTransport {
 	// this is what willnorris.com/go/imageproxy does by default,
 	// so keep the same here
 	transport, _ := aia.NewTransport()
-	fct.Transport = &TimeoutTransport{Transport: transport, Timeout: time.Second}
+	fct.Transport = &TimeoutTransport{Transport: transport, Timeout: 3 * time.Second}
 
 	return fct
 }
