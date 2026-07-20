@@ -186,7 +186,7 @@ export default {
   }
   .grid-scenes {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 260px);
+    grid-template-columns: repeat(auto-fill, 240px);
     gap: 1rem;
     justify-content: center;
   }

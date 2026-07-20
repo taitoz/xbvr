@@ -117,7 +117,7 @@ type ObjectConfig struct {
 			Enabled       bool    `default:"true" json:"enabled"`
 			SnippetLength float64 `default:"1.4" json:"snippetLength"`
 			SnippetAmount int     `default:"14" json:"snippetAmount"`
-			Resolution    int     `default:"480" json:"resolution"`
+			Resolution    int     `default:"240" json:"resolution"`
 			ExtraSnippet  bool    `default:"false" json:"extraSnippet"`
 			UseCUDA       bool    `default:"true" json:"useCUDA"`
 			Pitch         int     `default:"14" json:"pitch"`

@@ -311,8 +311,11 @@ func RenderPreview(inputFile string, destFile string, videoProjection string, sn
 		filePath string
 	}
 
-	// New timestamp grid: safe window from 60.0s to (dur - 20.0 - 1.2).
+	// New timestamp grid: safe window from the configured start time to (dur - 20.0 - 1.2).
 	startTime := 60.0
+	if dur > 30*60 {
+		startTime = 10 * 60
+	}
 	availableDuration := dur - startTime - 20.0 - 1.2
 	if availableDuration < 0 {
 		availableDuration = 0

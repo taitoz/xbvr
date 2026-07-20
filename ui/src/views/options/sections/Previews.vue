@@ -36,7 +36,7 @@
             <b-field label="Preview resolution">
               <div class="columns">
                 <div class="column is-two-thirds">
-                  <b-slider :min="300" :max="800" :step="20" :tooltip="false" v-model="resolution"></b-slider>
+                  <b-slider :min="200" :max="800" :step="20" :tooltip="false" v-model="resolution"></b-slider>
                 </div>
                 <div class="column">
                   <div class="content">{{resolution}}px</div>
@@ -101,7 +101,7 @@ export default {
       isLoading: true,
       snippetLength: 1.4,
       snippetAmount: 14,
-      resolution: 480,
+      resolution: 240,
       extraSnippet: false,
       useCUDA: true,
       pitch: 14,

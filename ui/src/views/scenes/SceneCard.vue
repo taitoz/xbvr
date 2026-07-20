@@ -2,7 +2,7 @@
   <div class="card is-shadowless">
     <div class="card-image">
       <div class="bbox"
-           v-bind:style='{backgroundImage: `url("${getImageURL(item.cover_url)}")`, backgroundSize: this.sceneCardScale, backgroundPosition: "center", backgroundRepeat: "no-repeat", opacity:item.is_available ? 1.0 : this.isAvailOpactiy, aspectRatio: this.sceneCardAspectRatio, width: "260px"}'
+           v-bind:style='{backgroundImage: `url("${getImageURL(item.cover_url)}")`, backgroundSize: this.sceneCardScale, backgroundPosition: "center", backgroundRepeat: "no-repeat", opacity:item.is_available ? 1.0 : this.isAvailOpactiy, aspectRatio: this.sceneCardAspectRatio, width: "240px"}'
            @click="showDetails(item)"
            @mouseover="preview = true"
            @mouseleave="preview = false">
@@ -270,7 +270,7 @@ export default {
     overflow: hidden;
     padding: 0;
     line-height: 0;
-    width: 260px;
+    width: 240px;
     height: auto;
   }
 
