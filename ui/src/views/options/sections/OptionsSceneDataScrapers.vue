@@ -31,7 +31,7 @@
       <b-table-column field="icon" width="50" v-slot="props" cell-class="narrow">
             <span class="image is-32x32">
               <vue-load-image>
-                <img slot="image" :src="getImageURL(props.row.avatar_url ? props.row.avatar_url : '/ui/images/blank.png')"/>
+                <img slot="image" loading="lazy" :src="getImageURL(props.row.avatar_url ? props.row.avatar_url : '/ui/images/blank.png')"/>
                 <img slot="preloader" src="/ui/images/blank.png"/>
                 <img slot="error" src="/ui/images/blank.png"/>
               </vue-load-image>
@@ -191,7 +191,7 @@ export default {
   methods: {
     getImageURL (u) {
       if (u.startsWith('http')) {
-        return '/img/128x/' + u.replace('://', ':/')
+        return '/img/128x/' + encodeURIComponent(u)
       } else {
         return u
       }
