@@ -205,7 +205,6 @@ export default {
   .actor_name {
     font-size: 14px !important;
     text-align: center;
-    background-color: #3b3b3b;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

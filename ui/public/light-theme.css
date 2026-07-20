@@ -952,6 +952,10 @@ fieldset[disabled] .button.is-link {
 .b-radio.radio.is-small {
 	font-size: 14px !important;
 }
+.scene_title,
+.actor_name {
+	background-color: #d0d0d1;
+}
 
 .column {
 	padding: .5rem;

@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sqlite3
 import ssl
@@ -41,6 +42,18 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_first_image_url(images_json):
+    try:
+        images = json.loads(images_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    for image in images:
+        if isinstance(image, dict) and image.get("url"):
+            return image["url"]
+    return None
+
+
 def download_cover(url, destination, timeout, insecure):
     request = Request(
         quote(url, safe=":/?&=#%"),
@@ -73,11 +86,10 @@ def main():
     connection.row_factory = sqlite3.Row
     scenes = connection.execute(
         """
-        SELECT id, scene_id, cover_url
+        SELECT id, scene_id, cover_url, images
         FROM scenes
         WHERE is_available = 1
           AND scene_id <> ''
-          AND cover_url <> ''
           AND deleted_at IS NULL
         ORDER BY id
         """
@@ -105,14 +117,22 @@ def main():
                 skipped += 1
                 continue
 
-            parsed_url = urlparse(cover_url)
+            download_url = cover_url
+            parsed_url = urlparse(download_url)
             if parsed_url.scheme not in {"http", "https"}:
-                print(f"Skipping {scene_id}: cover URL is not remote: {cover_url}")
+                download_url = get_first_image_url(scene["images"])
+                if not download_url:
+                    print(f"Skipping {scene_id}: no remote cover URL or image URL")
+                    skipped += 1
+                    continue
+                parsed_url = urlparse(download_url)
+            if parsed_url.scheme not in {"http", "https"}:
+                print(f"Skipping {scene_id}: image URL is not remote: {download_url}")
                 skipped += 1
                 continue
 
             try:
-                download_cover(cover_url, destination, args.timeout, args.insecure)
+                download_cover(download_url, destination, args.timeout, args.insecure)
                 local_cover_url = f"/myfiles/covers/{scene_id}.jpg"
                 connection.execute(
                     "UPDATE scenes SET cover_url = ? WHERE id = ?",
@@ -123,7 +143,7 @@ def main():
                 print(f"Downloaded {scene_id}")
             except (HTTPError, URLError, InvalidURL, OSError, RuntimeError, ValueError) as error:
                 failed += 1
-                failures.append((scene_id, cover_url, str(error)))
+                failures.append((scene_id, download_url, str(error)))
                 print(f"Failed {scene_id}: {error}", file=sys.stderr)
     finally:
         connection.close()

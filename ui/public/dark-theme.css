@@ -845,7 +845,7 @@ fieldset[disabled] .button {
 #toTop[data-v-50899169],
 #toggleInfiniteScroll[data-v-50899169] {
 	display: none;
-	background-color: #d4d4d5;
+	background-color: #3b3b3b;
 	color: #4a4a4a;
 	padding: 6px;
 	border-radius: 6px;
@@ -966,6 +966,10 @@ fieldset[disabled] .button.is-link {
 .scene_title,
 .b-radio.radio.is-small {
 	font-size: 14px !important;
+}
+.scene_title,
+.actor_name {
+	background-color: #3b3b3b;
 }
 
 .column {
