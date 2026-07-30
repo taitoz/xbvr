@@ -1,5 +1,5 @@
 <template>
-  <b-navbar :fixed-top="true" type="is-light">
+  <b-navbar :fixed-top="true" type="is-light" :class="{'has-filters-burger': showFiltersBurger}">
     <template slot="brand">
       <a v-if="showFiltersBurger" role="button" class="navbar-burger burger filters-burger" @click="$store.commit('overlay/toggleFilters')" :class="{'is-active': filtersOpen}" :title="filtersOpen ? 'Hide filters' : 'Show filters'" aria-label="filters menu">
         <span aria-hidden="true"></span>
@@ -325,6 +325,11 @@ export default {
     width: 700px;
     padding: 0;
     transform: translateX(-50%);
+  }
+
+  .has-filters-burger .quick-find {
+    left: calc(51% + 52px);
+    width: 648px;
   }
 
   .quick-find ::v-deep .autocomplete,

@@ -98,7 +98,9 @@ def main():
     downloaded = 0
     skipped = 0
     failed = 0
+    deleted_orphaned = 0
     failures = []
+    available_scene_ids = {scene["scene_id"] for scene in scenes}
 
     try:
         for scene in scenes:
@@ -148,9 +150,20 @@ def main():
     finally:
         connection.close()
 
+    for cover_file in covers_dir.glob("*.jpg"):
+        if cover_file.stem not in available_scene_ids:
+            try:
+                cover_file.unlink()
+                deleted_orphaned += 1
+                print(f"Deleted orphaned cover {cover_file.name}")
+            except OSError as error:
+                failures.append((cover_file.name, str(cover_file), str(error)))
+                failed += 1
+                print(f"Failed to delete orphaned cover {cover_file.name}: {error}", file=sys.stderr)
+
     print(
         f"Completed: {downloaded} downloaded, {skipped} skipped, {failed} failed, "
-        f"{len(scenes)} available scenes checked."
+        f"{deleted_orphaned} orphaned covers deleted, {len(scenes)} available scenes checked."
     )
     if failures:
         print("Failed cover downloads:")

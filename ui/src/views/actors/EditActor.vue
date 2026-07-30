@@ -111,7 +111,7 @@
       <footer class="modal-card-foot">
         <b-field>
           <b-button type="is-primary" @click="save">{{ $t('Save Details') }}</b-button>
-          <b-button v-if="actor.scenes.length == 0 && !actor.name.startsWith('aka:')" type="is-danger" outlined @click="deleteactor">{{ $t('Delete Actor') }}</b-button>
+          <b-button v-if="(!actor.scenes || actor.scenes.length == 0) && !actor.name.startsWith('aka:')" type="is-danger" outlined @click="deleteactor">{{ $t('Delete Actor') }}</b-button>
         </b-field>
       </footer>
     </div>

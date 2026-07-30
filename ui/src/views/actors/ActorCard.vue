@@ -46,8 +46,8 @@
       </b-tooltip>
 
       <span class="is-pulled-right" style="font-size:11px;text-align:right;">
-          <span v-if="actor.scenes.length == 1">{{actor.scenes.length}} scene</span>
-          <span v-if="actor.scenes.length > 1">{{actor.scenes.length}} scenes</span>
+          <span v-if="actor.scenes && actor.scenes.length == 1">{{actor.scenes.length}} scene</span>
+          <span v-if="actor.scenes && actor.scenes.length > 1">{{actor.scenes.length}} scenes</span>
           <span v-if="actor.avail_count > 0">, {{actor.avail_count}} available</span>
       </span>
     </div>
@@ -114,6 +114,9 @@ export default {
       this.$store.commit('overlay/showActorDetails', { actor: actor })
     },
     isAvailable(actor) {
+      if (!actor.scenes || actor.scenes.length === 0) {
+        return false
+      }
       let index = actor.scenes.findIndex(scene => scene.is_available == 1);
       if (index == -1) {
         return false

@@ -165,11 +165,11 @@
                 </b-tab-item>
                 <b-tab-item>
                   <template #header>                    
-                    Scenes ({{ actor.scenes.length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: hsl(0, 0%, 100%);"></b-icon></a>
+                    Scenes ({{ (actor.scenes || []).length }}) <a v-if="showOpenInNewWindow" :href='getCastScenesUrl([actor.name])' target="_blank" style="padding-left: 0.1em; border-bottom-style: none;"><b-icon pack="mdi" icon="open-in-new" size="is-small" style="background-color: hsl(0, 0%, 100%);"></b-icon></a>
                   </template>
-                  <div v-show="activeTab == 1" :class="['columns', 'is-multiline', 'actor-scenes', actor.scenes.length > 6 ? 'scroll' : '']" :style="actor.scenes.length > 6 ? { height: scenesScrollHeight } : null">
+                  <div v-show="activeTab == 1" :class="['columns', 'is-multiline', 'actor-scenes', (actor.scenes || []).length > 6 ? 'scroll' : '']" :style="(actor.scenes || []).length > 6 ? { height: scenesScrollHeight } : null">
                     <div :class="['column', 'is-2']"
-                      v-for="(scene, idx) in actor.scenes" :key="idx" class="image-wrapper">
+                      v-for="(scene, idx) in (actor.scenes || [])" :key="idx" class="image-wrapper">
                       <SceneCard :item="scene" :reRead=true />
                     </div>
                   </div>
@@ -333,7 +333,8 @@ export default {
       return this.$store.state.optionsWeb.web.showOpenInNewWindow
     },
     scenesScrollHeight () {
-      const rows = Math.ceil(this.actor.scenes.length / 4)
+      const scenes = this.actor.scenes || []
+      const rows = Math.ceil(scenes.length / 4)
       return `${rows * 11}em`
     },
     deoVrUrl () {
